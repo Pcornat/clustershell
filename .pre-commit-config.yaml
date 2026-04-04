@@ -1,4 +1,14 @@
 # Recommended : pre-commit autoupdate to check if anything is up to date.
+exclude: |
+  (?x)^(
+      doc/.*|
+      conf/.*|
+      bash_completions\.d/.*|
+      ChangeLog|
+      COPYING.*|
+      READ.*|
+      setup\.py
+  )$
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
