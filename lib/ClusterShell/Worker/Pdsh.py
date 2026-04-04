@@ -28,21 +28,25 @@ import os
 import shlex
 
 from ClusterShell.NodeSet import NodeSet
-from ClusterShell.Worker.EngineClient import EngineClientError
-from ClusterShell.Worker.EngineClient import EngineClientNotSupportedError
+from ClusterShell.Worker.EngineClient import (
+    EngineClientError,
+    EngineClientNotSupportedError,
+)
+from ClusterShell.Worker.Exec import CopyClient, ExecClient, ExecWorker
 from ClusterShell.Worker.Worker import WorkerError
-from ClusterShell.Worker.Exec import ExecWorker, ExecClient, CopyClient
 
 
 class PdshClient(ExecClient):
     """EngineClient which run 'pdsh'"""
 
-    MODE = 'pdsh'
+    MODE = "pdsh"
 
-    def __init__(self, node, command, worker, stderr, timeout, autoclose=False,
-                 rank=None):
-        ExecClient.__init__(self, node, command, worker, stderr, timeout,
-                            autoclose, rank)
+    def __init__(
+        self, node, command, worker, stderr, timeout, autoclose=False, rank=None
+    ):
+        ExecClient.__init__(
+            self, node, command, worker, stderr, timeout, autoclose, rank
+        )
         self._closed_nodes = NodeSet()
 
     def _build_cmd(self):
@@ -67,8 +71,7 @@ class PdshClient(ExecClient):
         # flag.
         connect_timeout = task.info("connect_timeout", 0)
         if connect_timeout > 0:
-            pdsh_env['PDSH_SSH_ARGS_APPEND'] = "-o ConnectTimeout=%d" % \
-                    connect_timeout
+            pdsh_env["PDSH_SSH_ARGS_APPEND"] = "-o ConnectTimeout=%d" % connect_timeout
 
         command_timeout = task.info("command_timeout", 0)
         if command_timeout > 0:
@@ -86,7 +89,7 @@ class PdshClient(ExecClient):
             prc = self.popen.poll()
             # if prc is None, process is still running
             if prc is None:
-                try: # try to kill it
+                try:  # try to kill it
                     self.popen.kill()
                 except OSError:
                     pass
@@ -100,10 +103,10 @@ class PdshClient(ExecClient):
 
         if timeout:
             assert abort, "abort flag not set on timeout"
-            for node in (self.key - self._closed_nodes):
+            for node in self.key - self._closed_nodes:
                 self.worker._on_node_timeout(node)
         else:
-            for node in (self.key - self._closed_nodes):
+            for node in self.key - self._closed_nodes:
                 self.worker._on_node_close(node, 0)
 
         self.worker._check_fini()
@@ -112,9 +115,11 @@ class PdshClient(ExecClient):
         """
         Parse Pdsh line syntax.
         """
-        if line.startswith(b"pdsh@") or \
-           line.startswith(b"pdcp@") or \
-           line.startswith(b"sending "):
+        if (
+            line.startswith(b"pdsh@")
+            or line.startswith(b"pdcp@")
+            or line.startswith(b"sending ")
+        ):
             try:
                 # pdsh@cors113: cors115: ssh exited with exit code 1
                 #       0          1      2     3     4    5    6  7
@@ -130,16 +135,20 @@ class PdshClient(ExecClient):
                 #     0             1      2                   3...
                 words = line.split()
                 # Set return code for nodename of worker
-                if self.MODE == 'pdsh':
-                    if len(words) == 4 and words[2] == b"command" and \
-                       words[3] == b"timeout":
+                if self.MODE == "pdsh":
+                    if (
+                        len(words) == 4
+                        and words[2] == b"command"
+                        and words[3] == b"timeout"
+                    ):
                         pass
-                    elif len(words) == 8 and words[3] == b"exited" and \
-                         words[7].isdigit():
+                    elif (
+                        len(words) == 8 and words[3] == b"exited" and words[7].isdigit()
+                    ):
                         nodename = words[1][:-1].decode()
                         self._closed_nodes.add(nodename)
                         self.worker._on_node_close(nodename, int(words[7]))
-                elif self.MODE == 'pdcp':
+                elif self.MODE == "pdcp":
                     nodename = words[1][:-1].decode()
                     self._closed_nodes.add(nodename)
                     self.worker._on_node_close(nodename, errno.ENOENT)
@@ -148,7 +157,7 @@ class PdshClient(ExecClient):
                 raise EngineClientError("Pdsh parser error: %s" % exc)
         else:
             # split pdsh reply "nodename: msg"
-            nodename, msg = line.split(b': ', 1)
+            nodename, msg = line.split(b": ", 1)
             self.worker._on_node_msgline(nodename.decode(), msg, sname)
 
     def _flush_read(self, sname):
@@ -162,7 +171,7 @@ class PdshClient(ExecClient):
             print_debug = self.worker.task.info("print_debug")
 
         suffix = ""
-        if sname == 'stderr':
+        if sname == "stderr":
             suffix = "@STDERR"
 
         for msg in self._readlines(sname):
@@ -174,14 +183,35 @@ class PdshClient(ExecClient):
 class PdcpClient(CopyClient, PdshClient):
     """EngineClient when pdsh is run to copy file, using pdcp."""
 
-    MODE = 'pdcp'
+    MODE = "pdcp"
 
-    def __init__(self, node, source, dest, worker, stderr, timeout, autoclose,
-                 preserve, reverse, rank=None):
-        CopyClient.__init__(self, node, source, dest, worker, stderr, timeout,
-                            autoclose, preserve, reverse, rank)
-        PdshClient.__init__(self, node, None, worker, stderr, timeout,
-                            autoclose, rank)
+    def __init__(
+        self,
+        node,
+        source,
+        dest,
+        worker,
+        stderr,
+        timeout,
+        autoclose,
+        preserve,
+        reverse,
+        rank=None,
+    ):
+        CopyClient.__init__(
+            self,
+            node,
+            source,
+            dest,
+            worker,
+            stderr,
+            timeout,
+            autoclose,
+            preserve,
+            reverse,
+            rank,
+        )
+        PdshClient.__init__(self, node, None, worker, stderr, timeout, autoclose, rank)
 
     def _build_cmd(self):
 
@@ -222,17 +252,22 @@ class WorkerPdsh(ExecWorker):
     ClusterShell pdsh-based worker Class.
 
     Remote Shell (pdsh) usage example:
-       >>> worker = WorkerPdsh(nodeset, handler=MyEventHandler(),
-       ...                     timeout=30, command="/bin/hostname")
-       >>> task.schedule(worker)      # schedule worker for execution
-       >>> task.resume()              # run
+       >>> worker = WorkerPdsh(
+       ...     nodeset, handler=MyEventHandler(), timeout=30, command="/bin/hostname"
+       ... )
+       >>> task.schedule(worker)  # schedule worker for execution
+       >>> task.resume()  # run
 
     Remote Copy (pdcp) usage example:
-       >>> worker = WorkerPdsh(nodeset, handler=MyEventHandler(),
-       ...                     timeout=30, source="/etc/my.conf",
-       ...                     dest="/etc/my.conf")
-       >>> task.schedule(worker)      # schedule worker for execution
-       >>> task.resume()              # run
+       >>> worker = WorkerPdsh(
+       ...     nodeset,
+       ...     handler=MyEventHandler(),
+       ...     timeout=30,
+       ...     source="/etc/my.conf",
+       ...     dest="/etc/my.conf",
+       ... )
+       >>> task.schedule(worker)  # schedule worker for execution
+       >>> task.resume()  # run
 
     Known limitations:
       - write() is not supported by WorkerPdsh
@@ -254,8 +289,9 @@ class WorkerPdsh(ExecWorker):
         """
         Write data to process. Not supported with Pdsh worker.
         """
-        raise EngineClientNotSupportedError("writing to stdin is not "
-                                            "supported by pdsh worker")
+        raise EngineClientNotSupportedError(
+            "writing to stdin is not supported by pdsh worker"
+        )
 
     def set_write_eof(self):
         """
@@ -264,7 +300,9 @@ class WorkerPdsh(ExecWorker):
 
         Not supported by PDSH Worker.
         """
-        raise EngineClientNotSupportedError("writing to stdin is not "
-                                            "supported by pdsh worker")
+        raise EngineClientNotSupportedError(
+            "writing to stdin is not supported by pdsh worker"
+        )
+
 
 WORKER_CLASS = WorkerPdsh

@@ -25,10 +25,10 @@ This is also the base class for rsh evolutions, like Ssh worker.
 """
 
 import os
-import shlex
 import re
+import shlex
 
-from ClusterShell.Worker.Exec import ExecClient, CopyClient, ExecWorker
+from ClusterShell.Worker.Exec import CopyClient, ExecClient, ExecWorker
 
 
 class RshClient(ExecClient):
@@ -36,10 +36,12 @@ class RshClient(ExecClient):
     Rsh EngineClient.
     """
 
-    def __init__(self, node, command, worker, stderr, timeout, autoclose=False,
-                 rank=None):
-        ExecClient.__init__(self, node, command, worker, stderr, timeout,
-                            autoclose, rank)
+    def __init__(
+        self, node, command, worker, stderr, timeout, autoclose=False, rank=None
+    ):
+        ExecClient.__init__(
+            self, node, command, worker, stderr, timeout, autoclose, rank
+        )
         self.rsh_rc = None
 
     def _build_cmd(self):
@@ -122,8 +124,11 @@ class RcpClient(CopyClient):
             else:
                 cmd_l.append("%s:%s" % (self.key, self.source))
 
-            cmd_l.append(os.path.join(self.dest, "%s.%s" % \
-                         (os.path.basename(self.source), self.key)))
+            cmd_l.append(
+                os.path.join(
+                    self.dest, "%s.%s" % (os.path.basename(self.source), self.key)
+                )
+            )
         else:
             cmd_l.append(self.source)
             if user:
@@ -139,17 +144,21 @@ class WorkerRsh(ExecWorker):
     ClusterShell rsh-based worker Class.
 
     Remote Shell (rsh) usage example:
-       >>> worker = WorkerRsh(nodeset, handler=MyEventHandler(),
-       ...                    timeout=30, command="/bin/hostname")
-       >>> task.schedule(worker)      # schedule worker for execution
-       >>> task.resume()              # run
+       >>> worker = WorkerRsh(
+       ...     nodeset, handler=MyEventHandler(), timeout=30, command="/bin/hostname"
+       ... )
+       >>> task.schedule(worker)  # schedule worker for execution
+       >>> task.resume()  # run
 
     Remote Copy (rcp) usage example:
-       >>> worker = WorkerRsh(nodeset, handler=MyEventHandler(),
-       ...                     source="/etc/my.conf",
-       ...                     dest="/etc/my.conf")
-       >>> task.schedule(worker)      # schedule worker for execution
-       >>> task.resume()              # run
+       >>> worker = WorkerRsh(
+       ...     nodeset,
+       ...     handler=MyEventHandler(),
+       ...     source="/etc/my.conf",
+       ...     dest="/etc/my.conf",
+       ... )
+       >>> task.schedule(worker)  # schedule worker for execution
+       >>> task.resume()  # run
 
     connect_timeout option is ignored by this worker.
     """
@@ -157,4 +166,5 @@ class WorkerRsh(ExecWorker):
     SHELL_CLASS = RshClient
     COPY_CLASS = RcpClient
 
-WORKER_CLASS=WorkerRsh
+
+WORKER_CLASS = WorkerRsh

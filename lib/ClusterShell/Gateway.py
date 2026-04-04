@@ -30,22 +30,34 @@ import os
 import sys
 import traceback
 
+from ClusterShell.Communication import (
+    ACKMessage,
+    Channel,
+    ConfigurationMessage,
+    ControlMessage,
+    EndMessage,
+    ErrorMessage,
+    MessageProcessingError,
+    RetcodeMessage,
+    RoutingMessage,
+    StartMessage,
+    StdErrMessage,
+    StdOutMessage,
+    TimeoutMessage,
+)
+from ClusterShell.Engine.Engine import EngineAbortException
 from ClusterShell.Event import EventHandler
 from ClusterShell.NodeSet import NodeSet
-from ClusterShell.Task import task_self, _getshorthostname
-from ClusterShell.Engine.Engine import EngineAbortException
+from ClusterShell.Task import _getshorthostname, task_self
 from ClusterShell.Worker.fastsubprocess import set_nonblock_flag
-from ClusterShell.Worker.Worker import StreamWorker, FANOUT_UNLIMITED
 from ClusterShell.Worker.Tree import TreeWorker
-from ClusterShell.Communication import Channel, ConfigurationMessage, \
-    ControlMessage, ACKMessage, ErrorMessage, StartMessage, EndMessage, \
-    StdOutMessage, StdErrMessage, RetcodeMessage, TimeoutMessage, \
-    RoutingMessage, MessageProcessingError
+from ClusterShell.Worker.Worker import FANOUT_UNLIMITED, StreamWorker
 
 
 def _gw_print_debug(task, line):
     """Default gateway task debug printing function"""
     logging.getLogger(__name__).debug(line)
+
 
 def gateway_excepthook(exc_type, exc_value, tb):
     """
@@ -53,7 +65,7 @@ def gateway_excepthook(exc_type, exc_value, tb):
     to logger instead of stderr.
     """
     tbexc = traceback.format_exception(exc_type, exc_value, tb)
-    logging.getLogger(__name__).error(''.join(tbexc))
+    logging.getLogger(__name__).error("".join(tbexc))
 
 
 class TreeWorkerResponder(EventHandler):
@@ -61,10 +73,10 @@ class TreeWorkerResponder(EventHandler):
 
     def __init__(self, task, gwchan, srcwkr):
         EventHandler.__init__(self)
-        self.gwchan = gwchan    # gateway channel
-        self.srcwkr = srcwkr    # id of distant parent TreeWorker
-        self.worker = None      # local TreeWorker instance
-        self.retcodes = {}      # self-managed retcodes
+        self.gwchan = gwchan  # gateway channel
+        self.srcwkr = srcwkr  # id of distant parent TreeWorker
+        self.worker = None  # local TreeWorker instance
+        self.retcodes = {}  # self-managed retcodes
         self.logger = logging.getLogger(__name__)
 
         # Grooming initialization
@@ -91,15 +103,11 @@ class TreeWorkerResponder(EventHandler):
 
         # check for grooming opportunities for stdout/stderr
         for msg_elem, nodes in self.worker.iter_errors():
-            logger.debug("iter(stderr): %s: %d bytes", nodes,
-                         len(msg_elem.message()))
-            self.gwchan.send(StdErrMessage(nodes, msg_elem.message(),
-                                           self.srcwkr))
+            logger.debug("iter(stderr): %s: %d bytes", nodes, len(msg_elem.message()))
+            self.gwchan.send(StdErrMessage(nodes, msg_elem.message(), self.srcwkr))
         for msg_elem, nodes in self.worker.iter_buffers():
-            logger.debug("iter(stdout): %s: %d bytes", nodes,
-                         len(msg_elem.message()))
-            self.gwchan.send(StdOutMessage(nodes, msg_elem.message(),
-                                           self.srcwkr))
+            logger.debug("iter(stdout): %s: %d bytes", nodes, len(msg_elem.message()))
+            self.gwchan.send(StdOutMessage(nodes, msg_elem.message(), self.srcwkr))
         # empty internal MsgTree buffers
         self.worker.flush_buffers()
         self.worker.flush_errors()
@@ -139,8 +147,9 @@ class TreeWorkerResponder(EventHandler):
         self.logger.debug("TreeWorkerResponder: ev_close timedout=%s", timedout)
         if timedout:
             # some nodes did timeout
-            msg = TimeoutMessage(NodeSet._fromlist1(worker.iter_keys_timeout()),
-                                 self.srcwkr)
+            msg = TimeoutMessage(
+                NodeSet._fromlist1(worker.iter_keys_timeout()), self.srcwkr
+            )
             self.gwchan.send(msg)
 
         if self.timer is not None:
@@ -159,6 +168,7 @@ class TreeWorkerResponder(EventHandler):
 
 class GatewayChannel(Channel):
     """high level logic for gateways"""
+
     def __init__(self, task):
         Channel.__init__(self)
         self.task = task
@@ -171,35 +181,37 @@ class GatewayChannel(Channel):
         """initialization"""
         # prepare communication
         self._init()
-        self.logger.debug('ready to accept channel communication')
+        self.logger.debug("ready to accept channel communication")
 
     def close(self):
         """close gw channel"""
-        self.logger.debug('closing gateway channel')
+        self.logger.debug("closing gateway channel")
         self._close()
 
     def recv(self, msg):
         """handle incoming message"""
         try:
-            self.logger.debug('handling incoming message: %s', str(msg))
+            self.logger.debug("handling incoming message: %s", str(msg))
             if msg.type == EndMessage.ident:
-                self.logger.debug('recv: got EndMessage')
+                self.logger.debug("recv: got EndMessage")
                 self._close()
             elif self.setup:
                 self.recv_ctl(msg)
             elif self.opened:
                 self.recv_cfg(msg)
             elif msg.type == StartMessage.ident:
-                self.logger.debug('got start message %s', msg)
+                self.logger.debug("got start message %s", msg)
                 self.opened = True
                 self._open()
-                self.logger.debug('channel started (version %s on remote end)',
-                                  self._xml_reader.version)
+                self.logger.debug(
+                    "channel started (version %s on remote end)",
+                    self._xml_reader.version,
+                )
             else:
-                self.logger.error('unexpected message: %s', str(msg))
-                raise MessageProcessingError('unexpected message: %s' % msg)
+                self.logger.error("unexpected message: %s", str(msg))
+                raise MessageProcessingError("unexpected message: %s" % msg)
         except MessageProcessingError as ex:
-            self.logger.error('on recv(): %s', str(ex))
+            self.logger.error("on recv(): %s", str(ex))
             self.send(ErrorMessage(str(ex)))
             self._close()
 
@@ -208,102 +220,107 @@ class GatewayChannel(Channel):
             raise
 
         except Exception as ex:
-            self.logger.exception('on recv(): %s', str(ex))
+            self.logger.exception("on recv(): %s", str(ex))
             self.send(ErrorMessage(str(ex)))
             self._close()
 
     def recv_cfg(self, msg):
         """receive cfg/topology configuration"""
         if msg.type != ConfigurationMessage.ident:
-            raise MessageProcessingError('unexpected message: %s' % msg)
+            raise MessageProcessingError("unexpected message: %s" % msg)
 
-        self.logger.debug('got channel configuration')
+        self.logger.debug("got channel configuration")
 
         # gw node name
         hostname = _getshorthostname()
         if not msg.gateway:
             self.nodename = hostname
-            self.logger.warn('gw name not provided, using system hostname %s',
-                             self.nodename)
+            self.logger.warn(
+                "gw name not provided, using system hostname %s", self.nodename
+            )
         else:
             self.nodename = msg.gateway
 
-        self.logger.debug('using gateway node name %s', self.nodename)
+        self.logger.debug("using gateway node name %s", self.nodename)
         if self.nodename.lower() != hostname.lower():
-            self.logger.debug('gw name %s does not match system hostname %s',
-                              self.nodename, hostname)
+            self.logger.debug(
+                "gw name %s does not match system hostname %s", self.nodename, hostname
+            )
 
         # topology
         task_self().topology = self.topology = msg.data_decode()
-        self.logger.debug('decoded propagation tree')
-        self.logger.debug('\n%s', self.topology)
+        self.logger.debug("decoded propagation tree")
+        self.logger.debug("\n%s", self.topology)
         self.setup = True
         self._ack(msg)
 
     def recv_ctl(self, msg):
         """receive control message with actions to perform"""
         if msg.type == ControlMessage.ident:
-            self.logger.debug('GatewayChannel._state_ctl')
-            if msg.action == 'shell':
+            self.logger.debug("GatewayChannel._state_ctl")
+            if msg.action == "shell":
                 data = msg.data_decode()
-                cmd = data['cmd']
+                cmd = data["cmd"]
 
-                stderr = data['stderr']
-                timeout = data['timeout']
-                remote = data['remote']
+                stderr = data["stderr"]
+                timeout = data["timeout"]
+                remote = data["remote"]
 
-                #self.propagation.invoke_gateway = data['invoke_gateway']
-                self.logger.debug('decoded gw invoke (%s)',
-                                  data['invoke_gateway'])
+                # self.propagation.invoke_gateway = data['invoke_gateway']
+                self.logger.debug("decoded gw invoke (%s)", data["invoke_gateway"])
 
-                taskinfo = data['taskinfo']
-                self.logger.debug('assigning task infos (%s)', data['taskinfo'])
+                taskinfo = data["taskinfo"]
+                self.logger.debug("assigning task infos (%s)", data["taskinfo"])
 
                 task = task_self()
                 task._info.update(taskinfo)
-                task.set_info('print_debug', _gw_print_debug)
+                task.set_info("print_debug", _gw_print_debug)
 
                 for infokey in taskinfo:
-                    if infokey.startswith('tree_default:'):
-                        self.logger.debug('Setting default %s to %s', infokey[13:], taskinfo[infokey])
+                    if infokey.startswith("tree_default:"):
+                        self.logger.debug(
+                            "Setting default %s to %s", infokey[13:], taskinfo[infokey]
+                        )
                         task.set_default(infokey[13:], taskinfo[infokey])
 
-                if task.info('debug'):
+                if task.info("debug"):
                     self.logger.setLevel(logging.DEBUG)
 
-                self.logger.debug('inherited fanout value=%d',
-                                  task.info("fanout"))
+                self.logger.debug("inherited fanout value=%d", task.info("fanout"))
 
-                self.logger.debug('launching execution/enter gathering state')
+                self.logger.debug("launching execution/enter gathering state")
 
                 responder = TreeWorkerResponder(task, self, msg.srcid)
 
-                self.propagation = TreeWorker(msg.target, responder, timeout,
-                                              command=cmd,
-                                              topology=self.topology,
-                                              newroot=self.nodename,
-                                              stderr=stderr,
-                                              remote=remote)
+                self.propagation = TreeWorker(
+                    msg.target,
+                    responder,
+                    timeout,
+                    command=cmd,
+                    topology=self.topology,
+                    newroot=self.nodename,
+                    stderr=stderr,
+                    remote=remote,
+                )
                 # FIXME ev_start-not-called workaround
                 responder.worker = self.propagation
                 self.propagation.upchannel = self
                 task.schedule(self.propagation)
                 self.logger.debug("TreeWorker scheduled")
                 self._ack(msg)
-            elif msg.action == 'write':
+            elif msg.action == "write":
                 data = msg.data_decode()
-                self.logger.debug('GatewayChannel write: %d bytes',
-                                  len(data['buf']))
-                self.propagation.write(data['buf'])
+                self.logger.debug("GatewayChannel write: %d bytes", len(data["buf"]))
+                self.propagation.write(data["buf"])
                 self._ack(msg)
-            elif msg.action == 'eof':
-                self.logger.debug('GatewayChannel eof')
+            elif msg.action == "eof":
+                self.logger.debug("GatewayChannel eof")
                 self.propagation.set_write_eof()
                 self._ack(msg)
             else:
-                self.logger.error('unexpected CTL action: %s', msg.action)
+                self.logger.error("unexpected CTL action: %s", msg.action)
         else:
-            self.logger.error('unexpected message: %s', str(msg))
+            self.logger.error("unexpected message: %s", str(msg))
 
     def _ack(self, msg):
         """acknowledge a received message"""
@@ -315,7 +332,7 @@ class GatewayChannel(Channel):
         We abort the whole gateway task to stop other running workers.
         This avoids any unwanted remaining processes on gateways.
         """
-        self.logger.debug('GatewayChannel: ev_close')
+        self.logger.debug("GatewayChannel: ev_close")
         self.worker.task.abort()
 
 
@@ -323,14 +340,16 @@ def gateway_main():
     """ClusterShell gateway entry point"""
     host = _getshorthostname()
     # configure root logger
-    logdir = os.path.expanduser(os.environ.get('CLUSTERSHELL_GW_LOG_DIR',
-                                               '/tmp'))
-    loglevel = os.environ.get('CLUSTERSHELL_GW_LOG_LEVEL', 'INFO')
+    logdir = os.path.expanduser(os.environ.get("CLUSTERSHELL_GW_LOG_DIR", "/tmp"))
+    loglevel = os.environ.get("CLUSTERSHELL_GW_LOG_LEVEL", "INFO")
     try:
         log_level = getattr(logging, loglevel.upper(), logging.INFO)
-        log_fmt = '%(asctime)s %(name)s %(levelname)s %(message)s'
-        logging.basicConfig(level=log_level, format=log_fmt,
-                            filename=os.path.join(logdir, "%s.gw.log" % host))
+        log_fmt = "%(asctime)s %(name)s %(levelname)s %(message)s"
+        logging.basicConfig(
+            level=log_level,
+            format=log_fmt,
+            filename=os.path.join(logdir, "%s.gw.log" % host),
+        )
     except (IOError, OSError):
         pass  # logging failure is not fatal
 
@@ -338,16 +357,15 @@ def gateway_main():
     sys.excepthook = gateway_excepthook
 
     if sys.stdin is None:
-        logger.critical('Gateway failure: sys.stdin is None')
+        logger.critical("Gateway failure: sys.stdin is None")
         sys.exit(1)
 
     if sys.stdin.isatty():
-        logger.critical('Gateway failure: sys.stdin.isatty() is True')
+        logger.critical("Gateway failure: sys.stdin.isatty() is True")
         sys.exit(1)
 
-    logger.debug('Starting gateway on %s', host)
+    logger.debug("Starting gateway on %s", host)
     logger.debug("environ=%s", os.environ)
-
 
     set_nonblock_flag(sys.stdin.fileno())
     set_nonblock_flag(sys.stdout.fileno())
@@ -367,24 +385,25 @@ def gateway_main():
     worker.set_reader(gateway.SNAME_READER, sys.stdin)
     worker.set_writer(gateway.SNAME_WRITER, sys.stdout, retain=False)
     # must stay disabled for now (see #274)
-    #worker.set_writer(gateway.SNAME_ERROR, sys.stderr, retain=False)
+    # worker.set_writer(gateway.SNAME_ERROR, sys.stderr, retain=False)
     task.schedule(worker)
-    logger.debug('Starting task')
+    logger.debug("Starting task")
     try:
         task.resume()
-        logger.debug('Task performed')
+        logger.debug("Task performed")
     except EngineAbortException as exc:
-        logger.debug('EngineAbortException')
+        logger.debug("EngineAbortException")
     except IOError as exc:
-        logger.debug('Broken pipe (%s)', exc)
+        logger.debug("Broken pipe (%s)", exc)
         raise
     except Exception as exc:
-        logger.exception('Gateway failure: %s', exc)
-    logger.debug('-------- The End --------')
+        logger.exception("Gateway failure: %s", exc)
+    logger.debug("-------- The End --------")
 
-if __name__ == '__main__':
-    __name__ = 'ClusterShell.Gateway'
+
+if __name__ == "__main__":
+    __name__ = "ClusterShell.Gateway"
     # To enable gateway profiling:
-    #import cProfile
-    #cProfile.run('gateway_main()', '/tmp/gwprof')
+    # import cProfile
+    # cProfile.run('gateway_main()', '/tmp/gwprof')
     gateway_main()

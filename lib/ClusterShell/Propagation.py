@@ -24,17 +24,25 @@ ClusterShell Propagation module. Use the topology tree to send commands
 through gateways and gather results.
 """
 
-from collections import deque
 import logging
+from collections import deque
 
+from ClusterShell.Communication import (
+    Channel,
+    ConfigurationMessage,
+    ControlMessage,
+    EndMessage,
+    ErrorMessage,
+    RetcodeMessage,
+    RoutedMessageBase,
+    RoutingMessage,
+    StartMessage,
+    StdErrMessage,
+    StdOutMessage,
+    TimeoutMessage,
+)
 from ClusterShell.Defaults import DEFAULTS
 from ClusterShell.NodeSet import NodeSet
-from ClusterShell.Communication import (Channel, ControlMessage, StdOutMessage,
-                                        StdErrMessage, RetcodeMessage,
-                                        StartMessage, EndMessage,
-                                        RoutedMessageBase, ErrorMessage,
-                                        ConfigurationMessage, TimeoutMessage,
-                                        RoutingMessage)
 from ClusterShell.Topology import TopologyError
 
 
@@ -51,6 +59,7 @@ class PropagationTreeRouter(object):
     Upon instantiation, the router will parse the topology tree to
     generate its routing table.
     """
+
     def __init__(self, root, topology, fanout=0):
         self.root = root
         self.topology = topology
@@ -92,10 +101,10 @@ class PropagationTreeRouter(object):
         """
         ### Disabled to handle all remaining nodes as directly connected nodes
         ## Check for directly connected targets
-        #res = [tmp & dst for tmp in self.table.values()]
-        #nexthop = NodeSet()
-        #[nexthop.add(x) for x in res]
-        #if len(nexthop) > 0:
+        # res = [tmp & dst for tmp in self.table.values()]
+        # nexthop = NodeSet()
+        # [nexthop.add(x) for x in res]
+        # if len(nexthop) > 0:
         #    yield nexthop, nexthop
 
         # Check for remote targets, that require a gateway to be reached
@@ -116,12 +125,14 @@ class PropagationTreeRouter(object):
         """
         if dst in self._unreachable_hosts:
             raise RouteResolvingError(
-                'Invalid destination: %s, host is unreachable' % dst)
+                "Invalid destination: %s, host is unreachable" % dst
+            )
 
         # can't resolve if source == destination
         if self.root == dst:
             raise RouteResolvingError(
-                'Invalid resolution request: %s -> %s' % (self.root, dst))
+                "Invalid resolution request: %s -> %s" % (self.root, dst)
+            )
 
         ## ------------------
         # the routing table is organized this way:
@@ -137,8 +148,7 @@ class PropagationTreeRouter(object):
             if dst in network:
                 res = self._best_next_hop(nexthops)
                 if res is None:
-                    raise RouteResolvingError('No route available to %s' % \
-                        str(dst))
+                    raise RouteResolvingError("No route available to %s" % str(dst))
                 self.nodes_fanin[res] += len(dst)
                 return res
             # destination contained in current next hops (ie. directly
@@ -146,8 +156,7 @@ class PropagationTreeRouter(object):
             if dst in nexthops:
                 return dst
 
-        raise RouteResolvingError(
-            'No route from %s to host %s' % (self.root, dst))
+        raise RouteResolvingError("No route from %s to host %s" % (self.root, dst))
 
     def mark_unreachable(self, dst):
         """mark node dst as unreachable and don't advertise routes
@@ -161,7 +170,7 @@ class PropagationTreeRouter(object):
     def _best_next_hop(self, candidates):
         """find out a good next hop gateway"""
         backup = None
-        backup_connections = 1e400 # infinity
+        backup_connections = 1e400  # infinity
 
         candidates = candidates.difference(self._unreachable_hosts)
 
@@ -170,7 +179,7 @@ class PropagationTreeRouter(object):
             # nodes_fanin table to avoid overloading a gateway
             connections = self.nodes_fanin.setdefault(host, 0)
             # FIXME
-            #if connections < self.fanout:
+            # if connections < self.fanout:
             #    # currently, the first one is the best
             #    return host
             if backup_connections > connections:
@@ -210,14 +219,14 @@ class PropagationChannel(Channel):
       - gtr
         Final state: wait for results from the subtree and store them.
     """
+
     def __init__(self, task, gateway):
-        """
-        """
+        """ """
         Channel.__init__(self, initiator=True)
         self.task = task
         self.gateway = gateway
         self.workers = {}
-        self._cfg_write_hist = deque() # track write requests
+        self._cfg_write_hist = deque()  # track write requests
         self._sendq = deque()
         self._rc = None
         self.logger = logging.getLogger(__name__)
@@ -257,47 +266,57 @@ class PropagationChannel(Channel):
             # Handle error messages when channel is not established yet
             # or if messages are non-routed (eg. gateway-related)
             nodeset = NodeSet(msg.nodes)
-            decoded = msg.data_decode() + b'\n'
+            decoded = msg.data_decode() + b"\n"
 
             for metaworker in self.workers.values():
                 for line in decoded.splitlines():
                     for node in nodeset:
-                        metaworker._on_remote_node_msgline(node, line, 'stderr',
-                                                           self.gateway)
+                        metaworker._on_remote_node_msgline(
+                            node, line, "stderr", self.gateway
+                        )
         elif self.setup:
             self.recv_ctl(msg)
         elif self.opened:
             self.recv_cfg(msg)
         elif msg.type == StartMessage.ident:
             self.opened = True
-            self.logger.debug('channel started (version %s on remote gateway)',
-                              self._xml_reader.version)
+            self.logger.debug(
+                "channel started (version %s on remote gateway)",
+                self._xml_reader.version,
+            )
         else:
-            self.logger.error('unexpected message: %s', str(msg))
+            self.logger.error("unexpected message: %s", str(msg))
 
-    def shell(self, nodes, command, worker, timeout, stderr, gw_invoke_cmd,
-              remote):
+    def shell(self, nodes, command, worker, timeout, stderr, gw_invoke_cmd, remote):
         """command execution through channel"""
-        self.logger.debug("shell nodes=%s timeout=%s worker=%s remote=%s",
-                          nodes, timeout, id(worker), remote)
+        self.logger.debug(
+            "shell nodes=%s timeout=%s worker=%s remote=%s",
+            nodes,
+            timeout,
+            id(worker),
+            remote,
+        )
 
         self.workers[id(worker)] = worker
 
         ctl = ControlMessage(id(worker))
-        ctl.action = 'shell'
+        ctl.action = "shell"
         ctl.target = nodes
 
         # keep only valid task info pairs
-        info = dict((k, v) for k, v in self.task._info.items()
-                    if k not in DEFAULTS._task_info_pkeys_bl)
+        info = dict(
+            (k, v)
+            for k, v in self.task._info.items()
+            if k not in DEFAULTS._task_info_pkeys_bl
+        )
 
         ctl_data = {
-            'cmd': command,
-            'invoke_gateway': gw_invoke_cmd, # XXX
-            'taskinfo': info,
-            'stderr': stderr,
-            'timeout': timeout,
-            'remote': remote,
+            "cmd": command,
+            "invoke_gateway": gw_invoke_cmd,  # XXX
+            "taskinfo": info,
+            "stderr": stderr,
+            "timeout": timeout,
+            "remote": remote,
         }
         ctl.data_encode(ctl_data)
         self.send_queued(ctl)
@@ -308,11 +327,11 @@ class PropagationChannel(Channel):
         assert id(worker) in self.workers
 
         ctl = ControlMessage(id(worker))
-        ctl.action = 'write'
+        ctl.action = "write"
         ctl.target = nodes
 
         ctl_data = {
-            'buf': buf,
+            "buf": buf,
         }
         ctl.data_encode(ctl_data)
         self._cfg_write_hist.appendleft((ctl.msgid, nodes, len(buf), worker))
@@ -324,14 +343,14 @@ class PropagationChannel(Channel):
         assert id(worker) in self.workers
 
         ctl = ControlMessage(id(worker))
-        ctl.action = 'eof'
+        ctl.action = "eof"
         ctl.target = nodes
         self.send_queued(ctl)
 
     def recv_cfg(self, msg):
         """handle incoming messages for state 'propagate configuration'"""
         self.logger.debug("recv_cfg")
-        if msg.type == 'ACK':
+        if msg.type == "ACK":
             self.logger.debug("CTL - connection with gateway fully established")
             self.setup = True
             self.send_dequeue()
@@ -340,7 +359,7 @@ class PropagationChannel(Channel):
 
     def recv_ctl(self, msg):
         """handle incoming messages for state 'control'"""
-        if msg.type == 'ACK':
+        if msg.type == "ACK":
             self.logger.debug("got ack (%s)", msg.type)
             # check if ack matches write history msgid to generate ev_written
             if self._cfg_write_hist and msg.ack == self._cfg_write_hist[-1][0]:
@@ -348,7 +367,7 @@ class PropagationChannel(Channel):
                 for node in nodes:
                     # we are losing track of the gateway here, we could override
                     # on_written in TreeWorker if needed (eg. for stats)
-                    metaworker._on_written(node, bytes_count, 'stdin')
+                    metaworker._on_written(node, bytes_count, "stdin")
             self.send_dequeue()
         elif isinstance(msg, RoutedMessageBase):
             metaworker = self.workers[msg.srcid]
@@ -356,18 +375,20 @@ class PropagationChannel(Channel):
                 nodeset = NodeSet(msg.nodes)
                 # msg.data_decode()'s name is a bit confusing, but returns
                 # pickle-decoded bytes (encoded string) and not string...
-                decoded = msg.data_decode() + b'\n'
+                decoded = msg.data_decode() + b"\n"
                 for line in decoded.splitlines():
                     for node in nodeset:
-                        metaworker._on_remote_node_msgline(node, line, 'stdout',
-                                                           self.gateway)
+                        metaworker._on_remote_node_msgline(
+                            node, line, "stdout", self.gateway
+                        )
             elif msg.type == StdErrMessage.ident:
                 nodeset = NodeSet(msg.nodes)
-                decoded = msg.data_decode() + b'\n'
+                decoded = msg.data_decode() + b"\n"
                 for line in decoded.splitlines():
                     for node in nodeset:
-                        metaworker._on_remote_node_msgline(node, line, 'stderr',
-                                                           self.gateway)
+                        metaworker._on_remote_node_msgline(
+                            node, line, "stderr", self.gateway
+                        )
             elif msg.type == RetcodeMessage.ident:
                 rc = msg.retcode
                 for node in NodeSet(msg.nodes):
@@ -377,11 +398,12 @@ class PropagationChannel(Channel):
                 for node in NodeSet(msg.nodes):
                     metaworker._on_remote_node_timeout(node, self.gateway)
             elif msg.type == RoutingMessage.ident:
-                self.logger.debug("RoutingMessage for %s (gw %s)", msg.targets,
-                                  msg.gateway)
-                metaworker._on_routing_event({ "event": msg.event,
-                                               "gateway": msg.gateway,
-                                               "targets": msg.targets })
+                self.logger.debug(
+                    "RoutingMessage for %s (gw %s)", msg.targets, msg.gateway
+                )
+                metaworker._on_routing_event(
+                    {"event": msg.event, "gateway": msg.gateway, "targets": msg.targets}
+                )
         elif msg.type == ErrorMessage.ident:
             # tree runtime error, could generate a new event later
             raise TopologyError("%s: %s" % (self.gateway, msg.reason))
@@ -398,19 +420,18 @@ class PropagationChannel(Channel):
         # do not use worker buffer or rc accessors here as we doesn't use
         # common stream names
         gateway = str(worker.nodes)
-        self.logger.debug("ev_close gateway=%s rc=%s %s", gateway, self._rc,
-                          self)
+        self.logger.debug("ev_close gateway=%s rc=%s %s", gateway, self._rc, self)
 
         # NOTE: self._rc is set None when _we_ close the channel (abort)
         if self._rc is None and not self.setup:
             # aborting before the channel is setup is worth a warning
-            self.logger.warning("ev_close: rc=%s with channel not setup",
-                                self._rc)
+            self.logger.warning("ev_close: rc=%s with channel not setup", self._rc)
 
         if self._rc is not None and self._rc != 0:
             # handle gateway channel error
-            self.logger.debug("error on gateway %s (rc=%s, setup=%s)", gateway,
-                              self._rc, self.setup)
+            self.logger.debug(
+                "error on gateway %s (rc=%s, setup=%s)", gateway, self._rc, self.setup
+            )
             self.task.router.mark_unreachable(gateway)
             self.logger.debug("gateway %s now set as unreachable", gateway)
 

@@ -5,13 +5,12 @@ Unit test for StreamWorker
 import os
 import unittest
 
-from ClusterShell.Worker.Worker import StreamWorker, WorkerError
-from ClusterShell.Task import task_self
 from ClusterShell.Event import EventHandler
+from ClusterShell.Task import task_self
+from ClusterShell.Worker.Worker import StreamWorker, WorkerError
 
 
 class StreamTest(unittest.TestCase):
-
     def run_worker(self, worker):
         """helper method to schedule and run a worker"""
         task_self().schedule(worker)
@@ -32,10 +31,12 @@ class StreamTest(unittest.TestCase):
     def test_002_pipe_readers(self):
         """test StreamWorker bound to several pipe readers"""
 
-        streams = { "pipe1_reader": b"Some data to read from a pipe",
-                    "stderr": b"Error data to read using special keyword stderr",
-                    "pipe2_reader": b"Other data to read from another pipe",
-                    "pipe3_reader": b"Cool data to read from a third pipe" }
+        streams = {
+            "pipe1_reader": b"Some data to read from a pipe",
+            "stderr": b"Error data to read using special keyword stderr",
+            "pipe2_reader": b"Other data to read from another pipe",
+            "pipe3_reader": b"Cool data to read from a third pipe",
+        }
 
         class TestH(EventHandler):
             def __init__(self, testcase):
@@ -53,10 +54,12 @@ class StreamTest(unittest.TestCase):
                     # before finishing, try to add another pipe at
                     # runtime: this is NOT allowed
                     rfd, wfd = os.pipe()
-                    self.testcase.assertRaises(WorkerError,
-                        worker.set_reader, "pipe4_reader", rfd)
-                    self.testcase.assertRaises(WorkerError,
-                        worker.set_writer, "pipe4_writer", wfd)
+                    self.testcase.assertRaises(
+                        WorkerError, worker.set_reader, "pipe4_reader", rfd
+                    )
+                    self.testcase.assertRaises(
+                        WorkerError, worker.set_writer, "pipe4_writer", wfd
+                    )
                     os.close(rfd)
                     os.close(wfd)
 
@@ -73,8 +76,9 @@ class StreamTest(unittest.TestCase):
         self.run_worker(worker)
 
         # check that all ev_read have been received
-        self.assertEqual(set(("pipe1_reader", "pipe2_reader", "pipe3_reader",
-                              "stderr")), hdlr.snames)
+        self.assertEqual(
+            set(("pipe1_reader", "pipe2_reader", "pipe3_reader", "stderr")), hdlr.snames
+        )
 
     def test_003_io_pipes(self):
         """test StreamWorker bound to pipe readers and writers"""
@@ -98,13 +102,13 @@ class StreamTest(unittest.TestCase):
             def ev_timer(self, timer):
                 # call set_write_eof on specific stream after some delay
                 worker = self.worker
-                self.worker = 'DONE'
+                self.worker = "DONE"
                 worker.set_write_eof("pipe2")
 
             def ev_hup(self, worker, node, rc):
                 # ev_hup called at the end (after set_write_eof is called)
                 self.hup_count += 1
-                self.testcase.assertEqual(self.worker, 'DONE')
+                self.testcase.assertEqual(self.worker, "DONE")
                 # no rc code should be set
                 self.testcase.assertEqual(rc, None)
 
@@ -159,6 +163,7 @@ class StreamTest(unittest.TestCase):
 
     def test_005_timeout_events(self):
         """test StreamWorker with timeout set (event based)"""
+
         class TestH(EventHandler):
             def __init__(self, testcase):
                 self.testcase = testcase
@@ -228,7 +233,7 @@ class StreamTest(unittest.TestCase):
         hdlr = TestH(self, rfd)
         worker = StreamWorker(handler=hdlr)
 
-        worker.set_writer("test", wfd) # closefd=True
+        worker.set_writer("test", wfd)  # closefd=True
         worker.write(b"initial", "test")
 
         self.run_worker(worker)
@@ -258,7 +263,7 @@ class StreamTest(unittest.TestCase):
         hdlr = TestH(self, rfd)
         worker = StreamWorker(handler=hdlr)
 
-        worker.set_writer("test", wfd) # closefd=True
+        worker.set_writer("test", wfd)  # closefd=True
         worker.write(b"initial", "test")
         worker.set_write_eof()
 
@@ -297,7 +302,7 @@ class StreamTest(unittest.TestCase):
         hdlr = TestH(self, rfd)
         worker = StreamWorker(handler=hdlr)
 
-        worker.set_writer("test", wfd) # closefd=True
+        worker.set_writer("test", wfd)  # closefd=True
         worker.write(b"initial", "test")
 
         self.run_worker(worker)
@@ -334,6 +339,7 @@ class StreamTest(unittest.TestCase):
 
     def test_010_worker_abort_with_read_buffers(self):
         """test StreamWorker abort() with read buffers"""
+
         class TestH(EventHandler):
             def __init__(self, testcase):
                 self.testcase = testcase
@@ -354,7 +360,7 @@ class StreamTest(unittest.TestCase):
         # additional ev_read events. This only works if timeout is not set.
         # For a test with timeout, see test_004_timeout_on_open_stream().
         hdlr = TestH(self)
-        worker = StreamWorker(handler=hdlr) # no timeout
+        worker = StreamWorker(handler=hdlr)  # no timeout
         hdlr.worker = worker
         # Create pipe stream
         rfd1, wfd1 = os.pipe()
@@ -366,6 +372,6 @@ class StreamTest(unittest.TestCase):
         timer1 = task_self().timer(0.5, handler=hdlr)
         self.run_worker(worker)
         self.assertTrue(hdlr.timer_called)
-        self.assertEqual(hdlr.read_count, 1) # single line only
+        self.assertEqual(hdlr.read_count, 1)  # single line only
         os.close(rfd1)
         os.close(wfd1)

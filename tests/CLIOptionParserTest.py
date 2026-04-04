@@ -3,8 +3,8 @@
 
 """Unit test for CLI.OptionParser"""
 
-from optparse import OptionConflictError
 import unittest
+from optparse import OptionConflictError
 
 from ClusterShell.CLI.OptionParser import OptionParser
 
@@ -13,6 +13,7 @@ class CLIOptionParserTest(unittest.TestCase):
     """This test case performs a complete CLI.OptionParser
     verification.
     """
+
     def testOptionParser(self):
         """test CLI.OptionParser (1)"""
         parser = OptionParser("dummy")

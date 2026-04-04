@@ -33,13 +33,19 @@ import os
 import shlex
 from string import Template
 
-from ClusterShell.Defaults import config_paths, DEFAULTS
-from ClusterShell.CLI.Display import VERB_QUIET, VERB_STD, \
-    VERB_VERB, VERB_DEBUG, THREE_CHOICES
+from ClusterShell.CLI.Display import (
+    THREE_CHOICES,
+    VERB_DEBUG,
+    VERB_QUIET,
+    VERB_STD,
+    VERB_VERB,
+)
+from ClusterShell.Defaults import DEFAULTS, config_paths
 
 
 class ClushConfigError(Exception):
     """Exception used by ClushConfig to report an error."""
+
     def __init__(self, section=None, option=None, msg=None):
         Exception.__init__(self)
         self.section = section
@@ -54,21 +60,24 @@ class ClushConfigError(Exception):
             serr += str(self.msg)
         return serr
 
+
 class ClushConfig(ConfigParser, object):
     """Config class for clush (specialized ConfigParser)"""
 
-    MAIN_SECTION = 'Main'
-    MAIN_DEFAULTS = {"fanout": "%d" % DEFAULTS.fanout,
-                     "connect_timeout": "%f" % DEFAULTS.connect_timeout,
-                     "command_timeout": "%f" % DEFAULTS.command_timeout,
-                     "history_size": "100",
-                     "color": THREE_CHOICES[0], # ''
-                     "verbosity": "%d" % VERB_STD,
-                     "node_count": "yes",
-                     "maxrc": "no",
-                     "fd_max": "8192",
-                     "command_prefix": "",
-                     "password_prompt": "no"}
+    MAIN_SECTION = "Main"
+    MAIN_DEFAULTS = {
+        "fanout": "%d" % DEFAULTS.fanout,
+        "connect_timeout": "%f" % DEFAULTS.connect_timeout,
+        "command_timeout": "%f" % DEFAULTS.command_timeout,
+        "history_size": "100",
+        "color": THREE_CHOICES[0],  # ''
+        "verbosity": "%d" % VERB_STD,
+        "node_count": "yes",
+        "maxrc": "no",
+        "fd_max": "8192",
+        "command_prefix": "",
+        "password_prompt": "no",
+    }
 
     def __init__(self, options, filename=None):
         """Initialize ClushConfig object from corresponding
@@ -83,7 +92,7 @@ class ClushConfig(ConfigParser, object):
         if filename:
             files = [filename]
         else:
-            files = config_paths('clush.conf')
+            files = config_paths("clush.conf")
 
         self.parsed = self.read(files)
 
@@ -100,11 +109,10 @@ class ClushConfig(ConfigParser, object):
                 for confdir in shlex.split(confdirstr):
                     # substitute $CFGDIR, set to the highest priority
                     # configuration directory that has been found
-                    confdir = Template(confdir).safe_substitute(
-                                                    CFGDIR=cfg_dirname)
+                    confdir = Template(confdir).safe_substitute(CFGDIR=cfg_dirname)
                     confdir = os.path.normpath(confdir)
                     if confdir in loaded_confdirs:
-                        continue # load each confdir only once
+                        continue  # load each confdir only once
                     loaded_confdirs.add(confdir)
                     if not os.path.isdir(confdir):
                         if not os.path.exists(confdir):
@@ -112,7 +120,7 @@ class ClushConfig(ConfigParser, object):
                         msg = "Defined confdir %s is not a directory" % confdir
                         raise ClushConfigError(msg=msg)
                     # add config declared in clush.conf.d file parts
-                    for cfgfn in sorted(glob.glob('%s/*.conf' % confdir)):
+                    for cfgfn in sorted(glob.glob("%s/*.conf" % confdir)):
                         # ignore files that cannot be read
                         self.parsed += self.read(cfgfn)
             except (NoSectionError, NoOptionError):
@@ -143,11 +151,12 @@ class ClushConfig(ConfigParser, object):
         try:
             # -O/--option KEY=VALUE
             for cfgopt in options.option:
-                optkey, optvalue = cfgopt.split('=', 1)
+                optkey, optvalue = cfgopt.split("=", 1)
                 self._set_main(optkey, optvalue)
         except ValueError as exc:
-            raise ClushConfigError(self.MAIN_SECTION, cfgopt,
-                                   "invalid -O/--option value")
+            raise ClushConfigError(
+                self.MAIN_SECTION, cfgopt, "invalid -O/--option value"
+            )
 
     def _set_main(self, option, value):
         """Set given option/value pair in the Main section."""
@@ -156,22 +165,21 @@ class ClushConfig(ConfigParser, object):
     def _getx(self, xtype, section, option):
         """Return a value of specified type for the named option."""
         try:
-            return getattr(ConfigParser, 'get%s' % xtype)(self, \
-                section, option)
+            return getattr(ConfigParser, "get%s" % xtype)(self, section, option)
         except (NoOptionError, NoSectionError, TypeError, ValueError) as exc:
             raise ClushConfigError(section, option, exc)
 
     def getboolean(self, section, option):
         """Return a boolean value for the named option."""
-        return self._getx('boolean', section, option)
+        return self._getx("boolean", section, option)
 
     def getfloat(self, section, option):
         """Return a float value for the named option."""
-        return self._getx('float', section, option)
+        return self._getx("float", section, option)
 
     def getint(self, section, option):
         """Return an integer value for the named option."""
-        return self._getx('int', section, option)
+        return self._getx("int", section, option)
 
     def _get_optional(self, section, option):
         """Utility method to get a value for the named option, but do
@@ -186,9 +194,9 @@ class ClushConfig(ConfigParser, object):
         mode (optionally defined)."""
         if self.mode:
             try:
-                return getattr(ConfigParser,
-                               'getboolean')(self, "mode:%s" % self.mode,
-                                             option)
+                return getattr(ConfigParser, "getboolean")(
+                    self, "mode:%s" % self.mode, option
+                )
             except (NoOptionError, NoSectionError):
                 pass
         return self.getboolean(self.MAIN_SECTION, option)
@@ -198,9 +206,9 @@ class ClushConfig(ConfigParser, object):
         mode (optionally defined)."""
         if self.mode:
             try:
-                return getattr(ConfigParser, 'getint')(self,
-                                                       "mode:%s" % self.mode,
-                                                       option)
+                return getattr(ConfigParser, "getint")(
+                    self, "mode:%s" % self.mode, option
+                )
             except (NoOptionError, NoSectionError):
                 pass
         return self.getint(self.MAIN_SECTION, option)
@@ -210,9 +218,9 @@ class ClushConfig(ConfigParser, object):
         mode (optionally defined)."""
         if self.mode:
             try:
-                return getattr(ConfigParser, 'getfloat')(self,
-                                                         "mode:%s" % self.mode,
-                                                         option)
+                return getattr(ConfigParser, "getfloat")(
+                    self, "mode:%s" % self.mode, option
+                )
             except (NoOptionError, NoSectionError):
                 pass
         return self.getfloat(self.MAIN_SECTION, option)
@@ -296,8 +304,11 @@ class ClushConfig(ConfigParser, object):
         """color value as a string in (never, always, auto)"""
         whencolor = self._get_mode_optional("color")
         if whencolor not in THREE_CHOICES:
-            raise ClushConfigError(self.mode or self.MAIN_SECTION, "color",
-                                   "choose from %s" % THREE_CHOICES)
+            raise ClushConfigError(
+                self.mode or self.MAIN_SECTION,
+                "color",
+                "choose from %s" % THREE_CHOICES,
+            )
         return whencolor
 
     @property
@@ -319,13 +330,14 @@ class ClushConfig(ConfigParser, object):
         """return available run modes"""
         for section in self.sections():
             if section.startswith("mode:"):
-                yield section[5:] # could use removeprefix() in py3.9+
+                yield section[5:]  # could use removeprefix() in py3.9+
 
     def set_mode(self, mode):
         """set run mode; properties will use it by default"""
         if mode not in self.modes():
-            raise ClushConfigError(msg='invalid mode "%s" (available: %s)'
-                                   % (mode, ' '.join(self.modes())))
+            raise ClushConfigError(
+                msg='invalid mode "%s" (available: %s)' % (mode, " ".join(self.modes()))
+            )
         self.mode = mode
 
     @property

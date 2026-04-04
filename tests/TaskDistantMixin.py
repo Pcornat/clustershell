@@ -4,17 +4,17 @@
 """Unit test for ClusterShell Task (distant)"""
 
 import pwd
+import socket
 import unittest
 import warnings
 
-from .TLib import HOSTNAME, make_temp_filename, make_temp_dir
 from ClusterShell.Event import EventHandler
 from ClusterShell.Task import *
-from ClusterShell.Worker.Ssh import WorkerSsh
 from ClusterShell.Worker.EngineClient import *
+from ClusterShell.Worker.Ssh import WorkerSsh
 from ClusterShell.Worker.Worker import FANOUT_UNLIMITED, WorkerBadArgumentError
 
-import socket
+from .TLib import HOSTNAME, make_temp_dir, make_temp_filename
 
 # TEventHandlerChecker 'received event' flags
 EV_START = 0x01
@@ -27,7 +27,6 @@ EV_CLOSE = 0x40
 
 
 class TaskDistantMixin(object):
-
     def setUp(self):
         self._task = task_self()
 
@@ -49,8 +48,8 @@ class TaskDistantMixin(object):
         worker1 = self._task.shell("/bin/hostname", nodes=HOSTNAME)
         worker2 = self._task.shell("/bin/uname -r", nodes=HOSTNAME)
         self._task.resume()
-        self.assertTrue(hasattr(worker1, 'command'))
-        self.assertTrue(hasattr(worker2, 'command'))
+        self.assertTrue(hasattr(worker1, "command"))
+        self.assertTrue(hasattr(worker2, "command"))
         self.assertEqual(worker1.command, "/bin/hostname")
         self.assertEqual(worker2.command, "/bin/uname -r")
 
@@ -62,7 +61,7 @@ class TaskDistantMixin(object):
         dests = []
         try:
             for i in range(5):
-                dest = make_temp_filename(suffix='LocalhostCopy')
+                dest = make_temp_filename(suffix="LocalhostCopy")
                 dests.append(dest)
                 worker = self._task.copy("/etc/hosts", dest, nodes=HOSTNAME)
             self._task.resume()
@@ -73,9 +72,10 @@ class TaskDistantMixin(object):
     def testCopyNodeFailure(self):
         # == stderr merged ==
         self._task.set_default("stderr", False)
-        dest = make_temp_filename(suffix='LocalhostCopyF')
-        worker = self._task.copy("/etc/hosts", dest,
-                                 nodes='unlikely-node,%s' % HOSTNAME)
+        dest = make_temp_filename(suffix="LocalhostCopyF")
+        worker = self._task.copy(
+            "/etc/hosts", dest, nodes="unlikely-node,%s" % HOSTNAME
+        )
         self._task.resume()
         self.assertEqual(worker.node_error_buffer("unlikely-node"), None)
         self.assertTrue(len(worker.node_buffer("unlikely-node")) > 2)
@@ -84,9 +84,10 @@ class TaskDistantMixin(object):
         # == stderr separated ==
         self._task.set_default("stderr", True)
         try:
-            dest = make_temp_filename(suffix='LocalhostCopyF2')
-            worker = self._task.copy("/etc/hosts", dest,
-                                     nodes='unlikely-node,%s' % HOSTNAME)
+            dest = make_temp_filename(suffix="LocalhostCopyF2")
+            worker = self._task.copy(
+                "/etc/hosts", dest, nodes="unlikely-node,%s" % HOSTNAME
+            )
             # run task
             self._task.resume()
             self.assertTrue(worker.node_buffer("unlikely-node") is None)
@@ -96,27 +97,32 @@ class TaskDistantMixin(object):
             self._task.set_default("stderr", False)
 
     def testLocalhostCopyDir(self):
-        dtmp_src = make_temp_dir('src')
-        dtmp_dst = make_temp_dir('testLocalhostCopyDir')
+        dtmp_src = make_temp_dir("src")
+        dtmp_dst = make_temp_dir("testLocalhostCopyDir")
         try:
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_b"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a", "lev2"))
-            worker = self._task.copy(dtmp_src.name, dtmp_dst.name,
-                                     nodes=HOSTNAME)
+            worker = self._task.copy(dtmp_src.name, dtmp_dst.name, nodes=HOSTNAME)
             self._task.resume()
-            self.assertTrue(os.path.exists(os.path.join(dtmp_dst.name,
-                            os.path.basename(dtmp_src.name), "lev1_a", "lev2")))
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(
+                        dtmp_dst.name, os.path.basename(dtmp_src.name), "lev1_a", "lev2"
+                    )
+                )
+            )
         finally:
             dtmp_dst.cleanup()
             dtmp_src.cleanup()
 
     def testLocalhostExplicitSshCopy(self):
-        dest = make_temp_filename('testLocalhostExplicitSshCopy')
+        dest = make_temp_filename("testLocalhostExplicitSshCopy")
         srcsz = os.path.getsize("/etc/hosts")
         try:
-            worker = WorkerSsh(HOSTNAME, source="/etc/hosts", dest=dest,
-                               handler=None, timeout=10)
+            worker = WorkerSsh(
+                HOSTNAME, source="/etc/hosts", dest=dest, handler=None, timeout=10
+            )
             self._task.schedule(worker)
             self._task.resume()
             self.assertEqual(srcsz, os.path.getsize(dest))
@@ -124,12 +130,13 @@ class TaskDistantMixin(object):
             os.remove(dest)
 
     def testLocalhostExplicitSshCopyWithOptions(self):
-        dest = make_temp_dir('testLocalhostExplicitSshCopyWithOptions')
+        dest = make_temp_dir("testLocalhostExplicitSshCopyWithOptions")
         self._task.set_info("scp_path", "/usr/bin/scp -l 10")
         self._task.set_info("scp_options", "-oLogLevel=QUIET")
         try:
-            worker = WorkerSsh(HOSTNAME, source="/etc/hosts", dest=dest.name,
-                               handler=None)
+            worker = WorkerSsh(
+                HOSTNAME, source="/etc/hosts", dest=dest.name, handler=None
+            )
             self._task.schedule(worker)
             self._task.resume()
             self.assertEqual(self._task.max_retcode(), 0)
@@ -142,37 +149,49 @@ class TaskDistantMixin(object):
         self.assertEqual(task_self().info("scp_path"), None)
 
     def testLocalhostExplicitSshCopyDir(self):
-        dtmp_src = make_temp_dir('src')
-        dtmp_dst = make_temp_dir('testLocalhostExplicitSshCopyDir')
+        dtmp_src = make_temp_dir("src")
+        dtmp_dst = make_temp_dir("testLocalhostExplicitSshCopyDir")
         try:
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_b"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a", "lev2"))
-            worker = WorkerSsh(HOSTNAME, source=dtmp_src.name,
-                               dest=dtmp_dst.name, handler=None)
+            worker = WorkerSsh(
+                HOSTNAME, source=dtmp_src.name, dest=dtmp_dst.name, handler=None
+            )
             self._task.schedule(worker)
             self._task.resume()
-            path = os.path.join(dtmp_dst.name, os.path.basename(dtmp_src.name),
-                                "lev1_a", "lev2")
+            path = os.path.join(
+                dtmp_dst.name, os.path.basename(dtmp_src.name), "lev1_a", "lev2"
+            )
             self.assertTrue(os.path.exists(path))
         finally:
             dtmp_dst.cleanup()
             dtmp_src.cleanup()
 
     def testLocalhostExplicitSshCopyDirPreserve(self):
-        dtmp_src = make_temp_dir('src')
-        dtmp_dst = make_temp_dir('testLocalhostExplicitSshCopyDirPreserve')
+        dtmp_src = make_temp_dir("src")
+        dtmp_dst = make_temp_dir("testLocalhostExplicitSshCopyDirPreserve")
         try:
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_b"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a", "lev2"))
-            worker = WorkerSsh(HOSTNAME, source=dtmp_src.name,
-                               dest=dtmp_dst.name, handler=None, timeout=10,
-                               preserve=True)
+            worker = WorkerSsh(
+                HOSTNAME,
+                source=dtmp_src.name,
+                dest=dtmp_dst.name,
+                handler=None,
+                timeout=10,
+                preserve=True,
+            )
             self._task.schedule(worker)
             self._task.resume()
-            self.assertTrue(os.path.exists(os.path.join(dtmp_dst.name,
-                            os.path.basename(dtmp_src.name), "lev1_a", "lev2")))
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(
+                        dtmp_dst.name, os.path.basename(dtmp_src.name), "lev1_a", "lev2"
+                    )
+                )
+            )
         finally:
             dtmp_dst.cleanup()
             dtmp_src.cleanup()
@@ -201,8 +220,9 @@ class TaskDistantMixin(object):
 
     def testExplicitSshWorkerStdErr(self):
         # init worker
-        worker = WorkerSsh(HOSTNAME, command="/bin/echo alright 1>&2",
-                           handler=None, stderr=True)
+        worker = WorkerSsh(
+            HOSTNAME, command="/bin/echo alright 1>&2", handler=None, stderr=True
+        )
         self._task.schedule(worker)
         # run task
         self._task.resume()
@@ -210,8 +230,9 @@ class TaskDistantMixin(object):
         self.assertEqual(worker.node_error_buffer(HOSTNAME), b"alright")
 
         # Re-test with stderr=False
-        worker = WorkerSsh(HOSTNAME, command="/bin/echo alright 1>&2",
-                           handler=None, stderr=False)
+        worker = WorkerSsh(
+            HOSTNAME, command="/bin/echo alright 1>&2", handler=None, stderr=False
+        )
         self._task.schedule(worker)
         # run task
         self._task.resume()
@@ -220,31 +241,38 @@ class TaskDistantMixin(object):
 
     class TEventHandlerChecker(EventHandler):
         """simple event trigger validator"""
+
         def __init__(self, test):
             self.test = test
             self.flags = 0
             self.read_count = 0
             self.written_count = 0
+
         def ev_start(self, worker):
             self.test.assertEqual(self.flags, 0)
             self.flags |= EV_START
+
         def ev_pickup(self, worker, node):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_PICKUP
             self.last_node = node
+
         def ev_read(self, worker, node, sname, msg):
             self.test.assertEqual(self.flags, EV_START | EV_PICKUP)
             self.flags |= EV_READ
             self.last_node = node
             self.last_read = msg
+
         def ev_written(self, worker, node, sname, size):
             self.test.assertTrue(self.flags & (EV_START | EV_PICKUP))
             self.flags |= EV_WRITTEN
+
         def ev_hup(self, worker, node, rc):
             self.test.assertTrue(self.flags & (EV_START | EV_PICKUP))
             self.flags |= EV_HUP
             self.last_node = node
             self.last_rc = rc
+
         def ev_close(self, worker, timedout):
             self.test.assertTrue(self.flags & EV_START)
             self.test.assertTrue(self.flags & EV_CLOSE == 0)
@@ -259,18 +287,26 @@ class TaskDistantMixin(object):
         # run task
         self._task.resume()
         # test events received: start, read, hup, close
-        self.assertEqual(test_eh.flags, EV_START | EV_PICKUP | EV_READ | EV_HUP | EV_CLOSE)
+        self.assertEqual(
+            test_eh.flags, EV_START | EV_PICKUP | EV_READ | EV_HUP | EV_CLOSE
+        )
 
     def testShellEventsWithTimeout(self):
         # init worker
         test_eh = self.__class__.TEventHandlerChecker(self)
-        worker = self._task.shell("/bin/echo alright && /bin/sleep 10",
-                                  nodes=HOSTNAME, handler=test_eh, timeout=2)
+        worker = self._task.shell(
+            "/bin/echo alright && /bin/sleep 10",
+            nodes=HOSTNAME,
+            handler=test_eh,
+            timeout=2,
+        )
         self.assertTrue(worker != None)
         # run task
         self._task.resume()
         # test events received: start, read, timeout, close
-        self.assertEqual(test_eh.flags, EV_START | EV_PICKUP | EV_READ | EV_TIMEOUT | EV_CLOSE)
+        self.assertEqual(
+            test_eh.flags, EV_START | EV_PICKUP | EV_READ | EV_TIMEOUT | EV_CLOSE
+        )
         self.assertEqual(worker.node_buffer(HOSTNAME), b"alright")
         self.assertEqual(worker.num_timeout(), 1)
         self.assertEqual(self._task.num_timeout(), 1)
@@ -288,16 +324,28 @@ class TaskDistantMixin(object):
     def testShellEventsWithTimeout2(self):
         # init worker
         test_eh1 = self.__class__.TEventHandlerChecker(self)
-        worker1 = self._task.shell("/bin/echo alright && /bin/sleep 10",
-                                   nodes=HOSTNAME, handler=test_eh1, timeout=2)
+        worker1 = self._task.shell(
+            "/bin/echo alright && /bin/sleep 10",
+            nodes=HOSTNAME,
+            handler=test_eh1,
+            timeout=2,
+        )
         test_eh2 = self.__class__.TEventHandlerChecker(self)
-        worker2 = self._task.shell("/bin/echo okay && /bin/sleep 10",
-                                   nodes=HOSTNAME, handler=test_eh2, timeout=3)
+        worker2 = self._task.shell(
+            "/bin/echo okay && /bin/sleep 10",
+            nodes=HOSTNAME,
+            handler=test_eh2,
+            timeout=3,
+        )
         # run task
         self._task.resume()
         # test events received: start, read, timeout, close
-        self.assertEqual(test_eh1.flags, EV_START | EV_PICKUP | EV_READ | EV_TIMEOUT | EV_CLOSE)
-        self.assertEqual(test_eh2.flags, EV_START | EV_PICKUP | EV_READ | EV_TIMEOUT | EV_CLOSE)
+        self.assertEqual(
+            test_eh1.flags, EV_START | EV_PICKUP | EV_READ | EV_TIMEOUT | EV_CLOSE
+        )
+        self.assertEqual(
+            test_eh2.flags, EV_START | EV_PICKUP | EV_READ | EV_TIMEOUT | EV_CLOSE
+        )
         self.assertEqual(worker1.node_buffer(HOSTNAME), b"alright")
         self.assertEqual(worker2.node_buffer(HOSTNAME), b"okay")
         self.assertEqual(worker1.num_timeout(), 1)
@@ -311,7 +359,9 @@ class TaskDistantMixin(object):
         # run task
         self._task.resume()
         # test events received: start, close
-        self.assertEqual(test_eh.flags, EV_START | EV_PICKUP | EV_READ | EV_HUP | EV_CLOSE)
+        self.assertEqual(
+            test_eh.flags, EV_START | EV_PICKUP | EV_READ | EV_HUP | EV_CLOSE
+        )
         self.assertEqual(worker.node_buffer(HOSTNAME), b"okay")
 
     def testShellEventsNoReadNoTimeout(self):
@@ -338,8 +388,7 @@ class TaskDistantMixin(object):
     def testWorkerBuffers(self):
         # Warning: if you modify this test, please also modify testWorkerErrorBuffers()
         task = task_self()
-        worker = task.shell("/usr/bin/printf 'foo\nbar\nxxx\n'",
-                            nodes=HOSTNAME)
+        worker = task.shell("/usr/bin/printf 'foo\nbar\nxxx\n'", nodes=HOSTNAME)
         task.resume()
         # test iter_buffers() by worker...
         cnt = 2
@@ -369,8 +418,9 @@ class TaskDistantMixin(object):
     def testWorkerErrorBuffers(self):
         # Warning: if you modify this test, please also modify testWorkerBuffers()
         task = task_self()
-        worker = task.shell("/usr/bin/printf 'foo\nbar\nxxx\n' 1>&2",
-                            nodes=HOSTNAME, stderr=True)
+        worker = task.shell(
+            "/usr/bin/printf 'foo\nbar\nxxx\n' 1>&2", nodes=HOSTNAME, stderr=True
+        )
         task.resume()
         # test iter_errors() by worker...
         cnt = 2
@@ -400,8 +450,7 @@ class TaskDistantMixin(object):
     def testWorkerNodeBuffers(self):
         task = task_self()
 
-        worker = task.shell("/usr/bin/printf 'foo\nbar\nxxx\n'",
-                            nodes=HOSTNAME)
+        worker = task.shell("/usr/bin/printf 'foo\nbar\nxxx\n'", nodes=HOSTNAME)
 
         task.resume()
 
@@ -415,8 +464,9 @@ class TaskDistantMixin(object):
     def testWorkerNodeErrors(self):
         task = task_self()
 
-        worker = task.shell("/usr/bin/printf 'foo\nbar\nxxx\n' 1>&2",
-                            nodes=HOSTNAME, stderr=True)
+        worker = task.shell(
+            "/usr/bin/printf 'foo\nbar\nxxx\n' 1>&2", nodes=HOSTNAME, stderr=True
+        )
 
         task.resume()
 
@@ -452,7 +502,7 @@ class TaskDistantMixin(object):
         self.assertEqual(cnt, 0)
 
         # test node_retcode
-        self.assertEqual(worker.node_retcode(HOSTNAME), 3)   # 1.2.91+
+        self.assertEqual(worker.node_retcode(HOSTNAME), 3)  # 1.2.91+
         self.assertEqual(worker.node_rc(HOSTNAME), 3)
 
         # test node_retcode failure
@@ -504,7 +554,7 @@ class TaskDistantMixin(object):
     def testSshUserOptionForScp(self):
         ssh_user_orig = self._task.info("ssh_user")
         self._task.set_info("ssh_user", pwd.getpwuid(os.getuid())[0])
-        dest = make_temp_filename('testLocalhostCopyU')
+        dest = make_temp_filename("testLocalhostCopyU")
         worker = self._task.copy("/etc/hosts", dest, nodes=HOSTNAME)
         self._task.resume()
         # restore original ssh_user (None)
@@ -520,8 +570,10 @@ class TaskDistantMixin(object):
             self._task.resume()
             self.assertEqual(worker.node_buffer(HOSTNAME), b"foobar")
             # test 3 options
-            self._task.set_info("ssh_options", \
-                "-oLogLevel=QUIET -oStrictHostKeyChecking=no -oVerifyHostKeyDNS=no")
+            self._task.set_info(
+                "ssh_options",
+                "-oLogLevel=QUIET -oStrictHostKeyChecking=no -oVerifyHostKeyDNS=no",
+            )
             worker = self._task.shell("/bin/echo foobar3", nodes=HOSTNAME)
             self._task.resume()
             self.assertEqual(worker.node_buffer(HOSTNAME), b"foobar3")
@@ -534,11 +586,13 @@ class TaskDistantMixin(object):
         ssh_options_orig = self._task.info("ssh_options")
         testfile = None
         try:
-            testfile = make_temp_filename('testLocalhostCopyO')
+            testfile = make_temp_filename("testLocalhostCopyO")
             if os.path.exists(testfile):
                 os.remove(testfile)
-            self._task.set_info("ssh_options", \
-                "-oLogLevel=QUIET -oStrictHostKeyChecking=no -oVerifyHostKeyDNS=no")
+            self._task.set_info(
+                "ssh_options",
+                "-oLogLevel=QUIET -oStrictHostKeyChecking=no -oVerifyHostKeyDNS=no",
+            )
             worker = self._task.copy("/etc/hosts", testfile, nodes=HOSTNAME)
             self._task.resume()
             self.assertTrue(os.path.exists(testfile))
@@ -554,8 +608,12 @@ class TaskDistantMixin(object):
                 if sname == worker.SNAME_STDERR:
                     assert msg == b"something wrong"
 
-        worker = self._task.shell("echo something wrong 1>&2", nodes=HOSTNAME,
-                                  handler=StdErrHandler(), stderr=True)
+        worker = self._task.shell(
+            "echo something wrong 1>&2",
+            nodes=HOSTNAME,
+            handler=StdErrHandler(),
+            stderr=True,
+        )
         self._task.resume()
         for buf, nodes in worker.iter_errors():
             self.assertEqual(buf, b"something wrong")
@@ -573,29 +631,29 @@ class TaskDistantMixin(object):
         class WriteOnReadHandler(EventHandler):
             def __init__(self, target_worker):
                 self.target_worker = target_worker
+
             def ev_read(self, worker, node, sname, msg):
-                self.target_worker.write(node.encode() + b':' + msg + b'\n')
+                self.target_worker.write(node.encode() + b":" + msg + b"\n")
                 self.target_worker.set_write_eof()
 
         reader = self._task.shell("cat", nodes=HOSTNAME)
-        worker = self._task.shell("sleep 1; echo foobar", nodes=HOSTNAME,
-                                  handler=WriteOnReadHandler(reader))
+        worker = self._task.shell(
+            "sleep 1; echo foobar", nodes=HOSTNAME, handler=WriteOnReadHandler(reader)
+        )
         self._task.resume()
         res = "%s:foobar" % HOSTNAME
         self.assertEqual(reader.node_buffer(HOSTNAME), res.encode())
 
     def testSshBadArgumentOption(self):
         # Check code < 1.4 compatibility
-        self.assertRaises(WorkerBadArgumentError, WorkerSsh, HOSTNAME, None,
-                          None)
+        self.assertRaises(WorkerBadArgumentError, WorkerSsh, HOSTNAME, None, None)
         # As of 1.4, ValueError is raised for missing parameter
-        self.assertRaises(ValueError, WorkerSsh, HOSTNAME, None, None) # 1.4+
+        self.assertRaises(ValueError, WorkerSsh, HOSTNAME, None, None)  # 1.4+
 
     def testCopyEvents(self):
         test_eh = self.__class__.TEventHandlerChecker(self)
-        dest = make_temp_filename('testLocalhostCopyEvents')
-        worker = self._task.copy("/etc/hosts", dest, nodes=HOSTNAME,
-                                 handler=test_eh)
+        dest = make_temp_filename("testLocalhostCopyEvents")
+        worker = self._task.copy("/etc/hosts", dest, nodes=HOSTNAME, handler=test_eh)
         # run task
         self._task.resume()
         os.unlink(dest)
@@ -610,6 +668,7 @@ class TaskDistantMixin(object):
                 EventHandler.__init__(self)
                 self.ext_worker = worker
                 self.testtimer = False
+
             def ev_timer(self, timer):
                 self.ext_worker.abort()
                 self.ext_worker.abort()  # safe but no effect
@@ -627,70 +686,104 @@ class TaskDistantMixin(object):
         worker.abort()
 
         # test noop abort() on unscheduled worker
-        worker = WorkerSsh(HOSTNAME, command="sleep 1", handler=None,
-                           timeout=None)
+        worker = WorkerSsh(HOSTNAME, command="sleep 1", handler=None, timeout=None)
         worker.abort()
 
     def testLocalhostRCopy(self):
         try:
-            dest = make_temp_dir('testLocalhostRCopy')
+            dest = make_temp_dir("testLocalhostRCopy")
             # use fake node 'aaa' to test rank > 0
-            worker = self._task.rcopy("/etc/hosts", dest.name, "aaa,%s" % HOSTNAME,
-                                      handler=None, timeout=10)
+            worker = self._task.rcopy(
+                "/etc/hosts", dest.name, "aaa,%s" % HOSTNAME, handler=None, timeout=10
+            )
             self._task.resume()
             self.assertEqual(worker.source, "/etc/hosts")
             self.assertEqual(worker.dest, dest.name)
-            self.assertTrue(os.path.exists(os.path.join(dest.name,
-                                                        "hosts.%s" % HOSTNAME)))
+            self.assertTrue(
+                os.path.exists(os.path.join(dest.name, "hosts.%s" % HOSTNAME))
+            )
         finally:
             dest.cleanup()
 
     def testLocalhostExplicitSshReverseCopy(self):
-        dest = make_temp_dir('testLocalhostExplicitSshRCopy')
+        dest = make_temp_dir("testLocalhostExplicitSshRCopy")
         try:
-            worker = WorkerSsh(HOSTNAME, source="/etc/hosts", dest=dest.name,
-                               handler=None, timeout=10, reverse=True)
+            worker = WorkerSsh(
+                HOSTNAME,
+                source="/etc/hosts",
+                dest=dest.name,
+                handler=None,
+                timeout=10,
+                reverse=True,
+            )
             self._task.schedule(worker)
             self._task.resume()
             self.assertEqual(worker.source, "/etc/hosts")
             self.assertEqual(worker.dest, dest.name)
-            self.assertTrue(os.path.exists(os.path.join(dest.name,
-                                                        "hosts.%s" % HOSTNAME)))
+            self.assertTrue(
+                os.path.exists(os.path.join(dest.name, "hosts.%s" % HOSTNAME))
+            )
         finally:
             dest.cleanup()
 
     def testLocalhostExplicitSshReverseCopyDir(self):
-        dtmp_src = make_temp_dir('src')
-        dtmp_dst = make_temp_dir('testLocalhostExplicitSshReverseCopyDir')
+        dtmp_src = make_temp_dir("src")
+        dtmp_dst = make_temp_dir("testLocalhostExplicitSshReverseCopyDir")
         try:
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_b"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a", "lev2"))
-            worker = WorkerSsh(HOSTNAME, source=dtmp_src.name,
-                               dest=dtmp_dst.name, handler=None, timeout=30,
-                               reverse=True)
+            worker = WorkerSsh(
+                HOSTNAME,
+                source=dtmp_src.name,
+                dest=dtmp_dst.name,
+                handler=None,
+                timeout=30,
+                reverse=True,
+            )
             self._task.schedule(worker)
             self._task.resume()
-            self.assertTrue(os.path.exists(os.path.join(dtmp_dst.name, "%s.%s" % \
-                    (os.path.basename(dtmp_src.name), HOSTNAME), "lev1_a", "lev2")))
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(
+                        dtmp_dst.name,
+                        "%s.%s" % (os.path.basename(dtmp_src.name), HOSTNAME),
+                        "lev1_a",
+                        "lev2",
+                    )
+                )
+            )
         finally:
             dtmp_dst.cleanup()
             dtmp_src.cleanup()
 
     def testLocalhostExplicitSshReverseCopyDirPreserve(self):
-        dtmp_src = make_temp_dir('src')
-        dtmp_dst = make_temp_dir('testLocalhostExplicitSshReverseCpDirPreserve')
+        dtmp_src = make_temp_dir("src")
+        dtmp_dst = make_temp_dir("testLocalhostExplicitSshReverseCpDirPreserve")
         try:
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_b"))
             os.mkdir(os.path.join(dtmp_src.name, "lev1_a", "lev2"))
-            worker = WorkerSsh(HOSTNAME, source=dtmp_src.name,
-                               dest=dtmp_dst.name, handler=None, timeout=30,
-                               reverse=True)
+            worker = WorkerSsh(
+                HOSTNAME,
+                source=dtmp_src.name,
+                dest=dtmp_dst.name,
+                handler=None,
+                timeout=30,
+                reverse=True,
+            )
             self._task.schedule(worker)
             self._task.resume()
-            self.assertTrue(os.path.exists(os.path.join(dtmp_dst.name, "%s.%s" % \
-                    (os.path.basename(dtmp_src.name), HOSTNAME), "lev1_a", "lev2")))
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(
+                        dtmp_dst.name,
+                        "%s.%s" % (os.path.basename(dtmp_src.name), HOSTNAME),
+                        "lev1_a",
+                        "lev2",
+                    )
+                )
+            )
         finally:
             dtmp_dst.cleanup()
             dtmp_src.cleanup()
@@ -728,7 +821,9 @@ class TaskDistantMixin(object):
         def ev_close(self, worker, timedout):
             self.close_count += 1
 
-    @unittest.skipIf(HOSTNAME == 'localhost', "does not work with hostname set to 'localhost'")
+    @unittest.skipIf(
+        HOSTNAME == "localhost", "does not work with hostname set to 'localhost'"
+    )
     def testWorkerEventCount(self):
         test_eh = self.__class__.TEventHandlerEvCountChecker()
         nodes = "localhost,%s" % HOSTNAME

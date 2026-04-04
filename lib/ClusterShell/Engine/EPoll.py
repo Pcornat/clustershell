@@ -28,9 +28,13 @@ import errno
 import select
 import time
 
-from ClusterShell.Engine.Engine import Engine, E_READ, E_WRITE
-from ClusterShell.Engine.Engine import EngineNotSupportedError
-from ClusterShell.Engine.Engine import EngineTimeoutException
+from ClusterShell.Engine.Engine import (
+    E_READ,
+    E_WRITE,
+    Engine,
+    EngineNotSupportedError,
+    EngineTimeoutException,
+)
 from ClusterShell.Worker.EngineClient import EngineClientEOF
 
 
@@ -72,7 +76,7 @@ class EngineEPoll(Engine):
         """
         Engine-specific fd unregistering. Called by Engine unregister.
         """
-        self._debug("UNREGSPEC fd=%d ev_is_set=%x"% (fd, ev_is_set))
+        self._debug("UNREGSPEC fd=%d ev_is_set=%x" % (fd, ev_is_set))
         if ev_is_set:
             self.epolling.unregister(fd)
 
@@ -83,8 +87,7 @@ class EngineEPoll(Engine):
         For the epoll engine, it modifies the event mask associated to a file
         descriptor.
         """
-        self._debug("MODSPEC fd=%d event=%x setvalue=%d" % (fd, event,
-                                                            setvalue))
+        self._debug("MODSPEC fd=%d event=%x setvalue=%d" % (fd, event, setvalue))
         if setvalue:
             self._register_specific(fd, event)
         else:
@@ -101,9 +104,10 @@ class EngineEPoll(Engine):
 
         # run main event loop...
         while self.evlooprefcnt > 0:
-            self._debug("LOOP evlooprefcnt=%d (reg_clifds=%s) (timers=%d)" % \
-                    (self.evlooprefcnt, self.reg_clifds.keys(),
-                     len(self.timerq)))
+            self._debug(
+                "LOOP evlooprefcnt=%d (reg_clifds=%s) (timers=%d)"
+                % (self.evlooprefcnt, self.reg_clifds.keys(), len(self.timerq))
+            )
             try:
                 timeo = self.timerq.nextfire_delay()
                 if timeout > 0 and timeo >= timeout:
@@ -127,7 +131,6 @@ class EngineEPoll(Engine):
                     continue
 
             for fd, event in evlist:
-
                 # get client instance
                 client, stream = self._fd2client(fd)
                 if client is None:
@@ -141,8 +144,10 @@ class EngineEPoll(Engine):
 
                 # check for poll error condition of some sort
                 if event & select.EPOLLERR:
-                    self._debug("EPOLLERR fd=%d sname=%s fdev=0x%x (%s)" % \
-                                (fd, sname, fdev, client))
+                    self._debug(
+                        "EPOLLERR fd=%d sname=%s fdev=0x%x (%s)"
+                        % (fd, sname, fdev, client)
+                    )
                     assert fdev & E_WRITE
                     self.remove_stream(client, stream)
                     self._current_stream = None
@@ -165,16 +170,20 @@ class EngineEPoll(Engine):
                 # time because handle_read() may perform a partial read)
                 elif event & select.EPOLLHUP:
                     assert fdev & E_READ, "fdev 0x%x & E_READ" % fdev
-                    self._debug("EPOLLHUP fd=%d sname=%s %s (%s)" % \
-                                (fd, sname, client, client.streams))
+                    self._debug(
+                        "EPOLLHUP fd=%d sname=%s %s (%s)"
+                        % (fd, sname, client, client.streams)
+                    )
                     self.remove_stream(client, stream)
                     self._current_stream = None
                     continue
 
                 # check for writing
                 if event & select.EPOLLOUT:
-                    self._debug("EPOLLOUT fd=%d sname=%s %s (%s)" % \
-                                (fd, sname, client, client.streams))
+                    self._debug(
+                        "EPOLLOUT fd=%d sname=%s %s (%s)"
+                        % (fd, sname, client, client.streams)
+                    )
                     assert fdev & E_WRITE
                     assert stream.events & fdev, (stream.events, fdev)
                     self.modify(client, sname, 0, fdev)
@@ -193,6 +202,7 @@ class EngineEPoll(Engine):
             # process clients timeout
             self.fire_timers()
 
-        self._debug("LOOP EXIT evlooprefcnt=%d (reg_clifds=%s) (timers=%d)" % \
-                (self.evlooprefcnt, self.reg_clifds, len(self.timerq)))
-
+        self._debug(
+            "LOOP EXIT evlooprefcnt=%d (reg_clifds=%s) (timers=%d)"
+            % (self.evlooprefcnt, self.reg_clifds, len(self.timerq))
+        )

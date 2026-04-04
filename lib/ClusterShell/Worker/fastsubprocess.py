@@ -41,24 +41,29 @@ try:
 except NameError:
     basestring = str
 
+
 # Exception classes used by this module.
 class CalledProcessError(Exception):
     """This exception is raised when a process run by check_call() returns
     a non-zero exit status.  The exit status will be stored in the
     returncode attribute."""
+
     def __init__(self, returncode, cmd):
         self.returncode = returncode
         self.cmd = cmd
-    def __str__(self):
-        return "Command '%s' returned non-zero exit status %d" % (self.cmd,
-            self.returncode)
 
-import select
+    def __str__(self):
+        return "Command '%s' returned non-zero exit status %d" % (
+            self.cmd,
+            self.returncode,
+        )
+
+
 import errno
 import fcntl
+import select
 
-__all__ = ["Popen", "PIPE", "STDOUT", "call", "check_call", \
-           "CalledProcessError"]
+__all__ = ["Popen", "PIPE", "STDOUT", "call", "check_call", "CalledProcessError"]
 
 try:
     MAXFD = os.sysconf("SC_OPEN_MAX")
@@ -66,6 +71,7 @@ except:
     MAXFD = 256
 
 _active = []
+
 
 def _cleanup():
     for inst in _active[:]:
@@ -76,6 +82,7 @@ def _cleanup():
                 # This can happen if two threads create a new Popen instance.
                 # It's harmless that it was already removed, so ignore.
                 pass
+
 
 PIPE = -1
 STDOUT = -2
@@ -119,10 +126,21 @@ def set_nonblock_flag(fd):
 
 class Popen(object):
     """A faster Popen"""
-    def __init__(self, args, bufsize=0, executable=None,
-                 stdin=None, stdout=None, stderr=None,
-                 preexec_fn=None, shell=False,
-                 cwd=None, env=None, universal_newlines=False):
+
+    def __init__(
+        self,
+        args,
+        bufsize=0,
+        executable=None,
+        stdin=None,
+        stdout=None,
+        stderr=None,
+        preexec_fn=None,
+        shell=False,
+        cwd=None,
+        env=None,
+        universal_newlines=False,
+    ):
         """Create new Popen instance."""
         _cleanup()
 
@@ -149,15 +167,25 @@ class Popen(object):
         # are None when not using PIPEs. The child objects are None
         # when not redirecting.
 
-        (p2cread, p2cwrite,
-         c2pread, c2pwrite,
-         errread, errwrite) = self._get_handles(stdin, stdout, stderr)
+        (p2cread, p2cwrite, c2pread, c2pwrite, errread, errwrite) = self._get_handles(
+            stdin, stdout, stderr
+        )
 
-        self._execute_child(args, executable, preexec_fn,
-                            cwd, env, universal_newlines, shell,
-                            p2cread, p2cwrite,
-                            c2pread, c2pwrite,
-                            errread, errwrite)
+        self._execute_child(
+            args,
+            executable,
+            preexec_fn,
+            cwd,
+            env,
+            universal_newlines,
+            shell,
+            p2cread,
+            p2cwrite,
+            c2pread,
+            c2pwrite,
+            errread,
+            errwrite,
+        )
 
         if p2cwrite is not None:
             set_nonblock_flag(p2cwrite)
@@ -169,12 +197,10 @@ class Popen(object):
             set_nonblock_flag(errread)
         self.stderr = errread
 
-
     def _translate_newlines(self, data):
         data = data.replace("\r\n", "\n")
         data = data.replace("\r", "\n")
         return data
-
 
     def __del__(self, sys=sys):
         if not self._child_created:
@@ -185,7 +211,6 @@ class Popen(object):
         if self.returncode is None and _active is not None:
             # Child is still running, keep us alive until we can wait on it.
             _active.append(self)
-
 
     def communicate(self, input=None):
         """Interact with process: Send data to stdin.  Read data from
@@ -216,10 +241,8 @@ class Popen(object):
 
         return self._communicate(input)
 
-
     def poll(self):
         return self._internal_poll()
-
 
     def _get_handles(self, stdin, stdout, stderr):
         """Construct and return tuple with IO objects:
@@ -278,16 +301,24 @@ class Popen(object):
             # Assuming file-like object
             errwrite = stderr.fileno()
 
-        return (p2cread, p2cwrite,
-                c2pread, c2pwrite,
-                errread, errwrite)
+        return (p2cread, p2cwrite, c2pread, c2pwrite, errread, errwrite)
 
-
-    def _execute_child(self, args, executable, preexec_fn,
-                       cwd, env, universal_newlines, shell,
-                       p2cread, p2cwrite,
-                       c2pread, c2pwrite,
-                       errread, errwrite):
+    def _execute_child(
+        self,
+        args,
+        executable,
+        preexec_fn,
+        cwd,
+        env,
+        universal_newlines,
+        shell,
+        p2cread,
+        p2cwrite,
+        c2pread,
+        c2pwrite,
+        errread,
+        errwrite,
+    ):
         """Execute program (POSIX version)"""
 
         if isinstance(args, basestring):
@@ -337,8 +368,7 @@ class Popen(object):
                     os.close(p2cread)
                 if c2pwrite is not None and c2pwrite not in (p2cread, 1):
                     os.close(c2pwrite)
-                if errwrite is not None and errwrite not in \
-                        (p2cread, c2pwrite, 2):
+                if errwrite is not None and errwrite not in (p2cread, c2pwrite, 2):
                     os.close(errwrite)
 
                 if cwd is not None:
@@ -366,7 +396,6 @@ class Popen(object):
         if errwrite is not None and errread is not None:
             os.close(errwrite)
 
-
     def _handle_exitstatus(self, sts):
         if os.WIFSIGNALED(sts):
             self.returncode = -os.WTERMSIG(sts)
@@ -375,7 +404,6 @@ class Popen(object):
         else:
             # Should never happen
             raise RuntimeError("Unknown child exit status!")
-
 
     def _internal_poll(self, _deadstate=None):
         """Check if child process has terminated.  Returns returncode
@@ -390,7 +418,6 @@ class Popen(object):
                     self.returncode = _deadstate
         return self.returncode
 
-
     def wait(self):
         """Wait for child process to terminate.  Returns returncode
         attribute."""
@@ -399,12 +426,11 @@ class Popen(object):
             self._handle_exitstatus(sts)
         return self.returncode
 
-
     def _communicate(self, input):
         read_set = []
         write_set = []
-        stdout = None # Return
-        stderr = None # Return
+        stdout = None  # Return
+        stderr = None  # Return
 
         if self.stdin:
             # Flush stdio buffer.  This might block, if the user has
@@ -457,15 +483,15 @@ class Popen(object):
 
         # All data exchanged.  Translate lists into strings.
         if stdout is not None:
-            stdout = ''.join(stdout)
+            stdout = "".join(stdout)
         if stderr is not None:
-            stderr = ''.join(stderr)
+            stderr = "".join(stderr)
 
         # Translate newlines, if requested.  We cannot let the file
         # object do the translation: It is based on stdio, which is
         # impossible to combine with select (unless forcing no
         # buffering).
-        if self.universal_newlines and hasattr(file, 'newlines'):
+        if self.universal_newlines and hasattr(file, "newlines"):
             if stdout:
                 stdout = self._translate_newlines(stdout)
             if stderr:
@@ -475,17 +501,13 @@ class Popen(object):
         return (stdout, stderr)
 
     def send_signal(self, sig):
-        """Send a signal to the process
-        """
+        """Send a signal to the process"""
         os.kill(self.pid, sig)
 
     def terminate(self):
-        """Terminate the process with SIGTERM
-        """
+        """Terminate the process with SIGTERM"""
         self.send_signal(signal.SIGTERM)
 
     def kill(self):
-        """Kill the process with SIGKILL
-        """
+        """Kill the process with SIGKILL"""
         self.send_signal(signal.SIGKILL)
-

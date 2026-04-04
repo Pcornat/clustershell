@@ -41,10 +41,8 @@ except ImportError:
 import threading
 
 from ClusterShell.Defaults import DEFAULTS
-from ClusterShell.Worker.fastsubprocess import Popen, PIPE, STDOUT, \
-    set_nonblock_flag
-from ClusterShell.Engine.Engine import EngineBaseTimer, E_READ, E_WRITE
-
+from ClusterShell.Engine.Engine import E_READ, E_WRITE, EngineBaseTimer
+from ClusterShell.Worker.fastsubprocess import PIPE, STDOUT, Popen, set_nonblock_flag
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,11 +50,14 @@ LOGGER = logging.getLogger(__name__)
 class EngineClientException(Exception):
     """Generic EngineClient exception."""
 
+
 class EngineClientEOF(EngineClientException):
     """EOF from client."""
 
+
 class EngineClientError(EngineClientException):
     """Base EngineClient error exception."""
+
 
 class EngineClientNotSupportedError(EngineClientError):
     """Operation not supported by EngineClient."""
@@ -109,9 +110,20 @@ class EngineClientStream(object):
         self.closefd = closefd
 
     def __repr__(self):
-        return "<%s at 0x%s (name=%s fd=%s rbuflen=%d wbuflen=%d eof=%d " \
-            "evmask=0x%x)>" % (self.__class__.__name__, id(self), self.name,
-            self.fd, len(self.rbuf), len(self.wbuf), self.eof, self.evmask)
+        return (
+            "<%s at 0x%s (name=%s fd=%s rbuflen=%d wbuflen=%d eof=%d "
+            "evmask=0x%x)>"
+            % (
+                self.__class__.__name__,
+                id(self),
+                self.name,
+                self.fd,
+                len(self.rbuf),
+                len(self.wbuf),
+                self.eof,
+                self.evmask,
+            )
+        )
 
     def close(self):
         """Close stream."""
@@ -130,8 +142,7 @@ class EngineClientStream(object):
 class EngineClientStreamDict(dict):
     """EngineClient's named stream dictionary."""
 
-    def set_stream(self, sname, sfile=None, evmask=0, retain=True,
-                   closefd=True):
+    def set_stream(self, sname, sfile=None, evmask=0, retain=True, closefd=True):
         """Set stream based on file object or file descriptor.
 
         This method can be used to add a stream or update its
@@ -218,11 +229,11 @@ class EngineClient(EngineBaseTimer):
 
         EngineBaseTimer.__init__(self, timeout, -1, autoclose)
 
-        self._reg_epoch = 0                 # registration generation number
+        self._reg_epoch = 0  # registration generation number
 
         # read-only public
-        self.registered = False             # registered on engine or not
-        self.delayable = True               # subject to fanout limit
+        self.registered = False  # registered on engine or not
+        self.delayable = True  # subject to fanout limit
 
         self.worker = worker
         if key is None:
@@ -237,9 +248,12 @@ class EngineClient(EngineBaseTimer):
 
     def __repr__(self):
         # added repr(self.key)
-        return '<%s.%s instance at 0x%x key %r>' % (self.__module__,
-                                                    self.__class__.__name__,
-                                                    id(self), self.key)
+        return "<%s.%s instance at 0x%x key %r>" % (
+            self.__module__,
+            self.__class__.__name__,
+            id(self),
+            self.key,
+        )
 
     def _fire(self):
         """
@@ -308,7 +322,7 @@ class EngineClient(EngineBaseTimer):
 
     def _flush_read(self, sname):
         """Called when stream is closing to flush read buffers."""
-        pass # derived classes may implement
+        pass  # derived classes may implement
 
     def _handle_read(self, sname):
         """
@@ -338,7 +352,7 @@ class EngineClient(EngineBaseTimer):
                     return
                 if exc.errno == errno.EPIPE:
                     # broken pipe: log warning message and do NOT retry
-                    LOGGER.warning('%r: %s', self, exc)
+                    LOGGER.warning("%r: %s", self, exc)
                     return
                 raise
             if wcnt > 0:
@@ -370,15 +384,22 @@ class EngineClient(EngineBaseTimer):
             stderr_setup = STDOUT
 
         # Launch process in non-blocking mode
-        proc = Popen(commandlist, bufsize=0, stdin=PIPE, stdout=PIPE,
-                     stderr=stderr_setup, shell=shell, env=full_env)
+        proc = Popen(
+            commandlist,
+            bufsize=0,
+            stdin=PIPE,
+            stdout=PIPE,
+            stderr=stderr_setup,
+            shell=shell,
+            env=full_env,
+        )
 
         if self._stderr:
-            self.streams.set_stream(self.worker.SNAME_STDERR, proc.stderr,
-                                    E_READ)
+            self.streams.set_stream(self.worker.SNAME_STDERR, proc.stderr, E_READ)
         self.streams.set_stream(self.worker.SNAME_STDOUT, proc.stdout, E_READ)
-        self.streams.set_stream(self.worker.SNAME_STDIN, proc.stdin, E_WRITE,
-                                retain=False)
+        self.streams.set_stream(
+            self.worker.SNAME_STDIN, proc.stdin, E_WRITE, retain=False
+        )
 
         return proc
 
@@ -397,12 +418,12 @@ class EngineClient(EngineBaseTimer):
         lines = buf.splitlines(True)
         rfile.rbuf = bytes()
         for line in lines:
-            if line.endswith(b'\n'):
-                if line.endswith(b'\r\n'):
-                    yield line[:-2] # trim CRLF
+            if line.endswith(b"\n"):
+                if line.endswith(b"\r\n"):
+                    yield line[:-2]  # trim CRLF
                 else:
                     # trim LF
-                    yield line[:-1] # trim LF
+                    yield line[:-1]  # trim LF
             else:
                 # keep partial line in buffer
                 rfile.rbuf = line
@@ -422,8 +443,9 @@ class EngineClient(EngineBaseTimer):
     def _set_write_eof(self, sname):
         """Set EOF on specific writable stream."""
         if sname not in self.streams:
-            LOGGER.debug("stream %s was already closed on client %s, skipping",
-                         sname, self.key)
+            LOGGER.debug(
+                "stream %s was already closed on client %s, skipping", sname, self.key
+            )
             return
 
         wfile = self.streams[sname]
@@ -492,20 +514,24 @@ class EnginePort(EngineClient):
         # Set nonblocking flag
         set_nonblock_flag(readfd)
         set_nonblock_flag(writefd)
-        self.streams.set_stream('in', readfd, E_READ)
-        self.streams.set_stream('out', writefd, E_WRITE)
+        self.streams.set_stream("in", readfd, E_READ)
+        self.streams.set_stream("out", writefd, E_WRITE)
 
     def __repr__(self):
         try:
-            fd_in = self.streams['in'].fd
+            fd_in = self.streams["in"].fd
         except KeyError:
             fd_in = None
         try:
-            fd_out = self.streams['out'].fd
+            fd_out = self.streams["out"].fd
         except KeyError:
             fd_out = None
-        return "<%s at 0x%s (streams=(%s, %s))>" % (self.__class__.__name__,
-                                                    id(self), fd_in, fd_out)
+        return "<%s at 0x%s (streams=(%s, %s))>" % (
+            self.__class__.__name__,
+            id(self),
+            fd_in,
+            fd_out,
+        )
 
     def _start(self):
         """Start port."""
@@ -520,12 +546,12 @@ class EnginePort(EngineClient):
             try:
                 while not self._msgq.empty():
                     pmsg = self._msgq.get(block=False)
-                    LOGGER.debug('%r: dropped msg: %s', self, pmsg.get())
+                    LOGGER.debug("%r: dropped msg: %s", self, pmsg.get())
             except queue.Empty:
                 pass
         self._msgq = None
-        del self.streams['out']
-        del self.streams['in']
+        del self.streams["out"]
+        del self.streams["in"]
         self.invalidate()
 
     def _handle_read(self, sname):
@@ -549,13 +575,13 @@ class EnginePort(EngineClient):
 
         Return False if the message cannot be sent (eg. port closed).
         """
-        if self._msgq is None: # called after port closed?
+        if self._msgq is None:  # called after port closed?
             return False
 
         pmsg = EnginePort._Msg(send_msg, not send_once)
         self._msgq.put(pmsg, block=True, timeout=None)
         try:
-            ret = os.write(self.streams['out'].fd, b'M')
+            ret = os.write(self.streams["out"].fd, b"M")
         except OSError:
             raise
         pmsg.sync()

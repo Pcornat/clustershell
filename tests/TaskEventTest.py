@@ -6,8 +6,8 @@
 import unittest
 import warnings
 
-from ClusterShell.Task import *
 from ClusterShell.Event import EventHandler
+from ClusterShell.Task import *
 
 
 class BaseAssertTestHandler(EventHandler):
@@ -114,10 +114,10 @@ class TestHandler(BaseAssertTestHandler):
         self.cnt_pickup += 1
 
     def ev_read(self, worker, node, sname, msg):
-        if sname == 'stdout':
+        if sname == "stdout":
             self.did_read = True
             assert msg == b"abcdefghijklmnopqrstuvwxyz"
-        elif sname == 'stderr':
+        elif sname == "stderr":
             self.did_readerr = True
             assert msg == b"errerrerrerrerrerrerrerr"
 
@@ -137,18 +137,22 @@ class TestHandler(BaseAssertTestHandler):
 
 
 class TaskEventTest(unittest.TestCase):
-
-    def run_task_and_catch_warnings(self, task, expected_warn_cnt=0,
-                                    category=DeprecationWarning,
-                                    task_timeout=None):
+    def run_task_and_catch_warnings(
+        self, task, expected_warn_cnt=0, category=DeprecationWarning, task_timeout=None
+    ):
         """helper to run task and catch+test issued warnings"""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             task.run(timeout=task_timeout)
             if len(w) != expected_warn_cnt:
-                self.fail("Expected %d warnings, got %d: %s"
-                          % (expected_warn_cnt, len(w),
-                             '\n'.join(str(ex.message) for ex in w)))
+                self.fail(
+                    "Expected %d warnings, got %d: %s"
+                    % (
+                        expected_warn_cnt,
+                        len(w),
+                        "\n".join(str(ex.message) for ex in w),
+                    )
+                )
             if len(w) > 0:
                 self.assertTrue(issubclass(w[-1].category, category))
 
@@ -344,6 +348,7 @@ class TaskEventTest(unittest.TestCase):
 
     class LegacyTOnTheFlyLauncher(EventHandler):
         """Legacy Test Event handler to schedule commands on the fly"""
+
         def ev_read(self, worker):
             assert worker.task.running()
             # in-fly workers addition
@@ -351,10 +356,13 @@ class TaskEventTest(unittest.TestCase):
             assert other1 != None
             other2 = worker.task.shell("/bin/sleep 0.1", handler=self)
             assert other2 != None
+
         def ev_pickup(self, worker):
             """legacy ev_pickup signature to check for warnings"""
+
         def ev_hup(self, worker):
             """legacy ev_hup signature to check for warnings"""
+
         def ev_close(self, worker):
             """legacy ev_close signature to check for warnings"""
 
@@ -370,6 +378,7 @@ class TaskEventTest(unittest.TestCase):
 
     class TOnTheFlyLauncher(EventHandler):
         """CS v1.8 Test Event handler to schedule commands on the fly"""
+
         def ev_read(self, worker, node, sname, msg):
             assert worker.task.running()
             # in-fly workers addition
@@ -391,6 +400,7 @@ class TaskEventTest(unittest.TestCase):
         def ev_start(self, worker):
             assert worker.task.running()
             worker.write(b"foo bar\n")
+
         def ev_read(self, worker):
             assert worker.current_msg == b"foo bar"
             worker.abort()
@@ -405,6 +415,7 @@ class TaskEventTest(unittest.TestCase):
         def ev_start(self, worker):
             assert worker.task.running()
             worker.write(b"foo bar\n")
+
         def ev_read(self, worker, node, sname, msg):
             assert msg == b"foo bar"
             worker.abort()

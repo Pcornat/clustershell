@@ -29,15 +29,17 @@ from __future__ import print_function
 
 import sys
 
-from ClusterShell.MsgTree import MsgTree, MODE_DEFER, MODE_TRACE
-from ClusterShell.NodeSet import NodeSet, NodeSetParseError, std_group_resolver
-from ClusterShell.NodeSet import set_std_group_resolver_config
-
-from ClusterShell.CLI.Display import Display, THREE_CHOICES
-from ClusterShell.CLI.Display import sys_stdin
+from ClusterShell.CLI.Display import THREE_CHOICES, Display, sys_stdin
 from ClusterShell.CLI.Error import GENERIC_ERRORS, handle_generic_error
 from ClusterShell.CLI.OptionParser import OptionParser
 from ClusterShell.CLI.Utils import nodeset_cmpkey
+from ClusterShell.MsgTree import MODE_DEFER, MODE_TRACE, MsgTree
+from ClusterShell.NodeSet import (
+    NodeSet,
+    NodeSetParseError,
+    set_std_group_resolver_config,
+    std_group_resolver,
+)
 
 
 def display_tree(tree, disp, out):
@@ -55,12 +57,12 @@ def display_tree(tree, disp, out):
                 reldepth = reldepths[depth] = reldepth + offset
             nodeset = NodeSet.fromlist(keys)
             if line_mode:
-                out.write(str(nodeset) + ':\n')
+                out.write(str(nodeset) + ":\n")
             else:
                 out.write(disp.format_header(nodeset, reldepth))
-        out.write(' ' * reldepth + bytes(msgline).decode(errors='replace')
-                  + '\n')
+        out.write(" " * reldepth + bytes(msgline).decode(errors="replace") + "\n")
         togh = nchildren != 1
+
 
 def display(tree, disp, gather, trace_mode, enable_nodeset_key):
     """nicely display MsgTree instance `tree' content according to
@@ -73,8 +75,9 @@ def display(tree, disp, gather, trace_mode, enable_nodeset_key):
         if enable_nodeset_key:
             # lambda to create a NodeSet from keys returned by walk()
             ns_getter = lambda x: NodeSet.fromlist(x[1])
-            for nodeset in sorted((ns_getter(item) for item in tree.walk()),
-                                  key=nodeset_cmpkey):
+            for nodeset in sorted(
+                (ns_getter(item) for item in tree.walk()), key=nodeset_cmpkey
+            ):
                 disp.print_gather(nodeset, tree[nodeset[0]])
         else:
             for msg, key in tree.walk():
@@ -86,7 +89,8 @@ def display(tree, disp, gather, trace_mode, enable_nodeset_key):
                 disp.print_gather(node, tree[str(node)])
         else:
             for key in tree.keys():
-                disp.print_gather_keys([ key ], tree[key])
+                disp.print_gather_keys([key], tree[key])
+
 
 def clubak():
     """script subroutine"""
@@ -94,18 +98,20 @@ def clubak():
     # Argument management
     parser = OptionParser("%prog [options]")
     parser.install_groupsconf_option()
-    parser.install_display_options(verbose_options=True,
-                                   separator_option=True,
-                                   dshbak_compat=True,
-                                   msgtree_mode=True)
+    parser.install_display_options(
+        verbose_options=True,
+        separator_option=True,
+        dshbak_compat=True,
+        msgtree_mode=True,
+    )
     options = parser.parse_args()[0]
 
     set_std_group_resolver_config(options.groupsconf)
 
-    if options.interpret_keys == THREE_CHOICES[-1]: # auto?
-        enable_nodeset_key = None # AUTO
+    if options.interpret_keys == THREE_CHOICES[-1]:  # auto?
+        enable_nodeset_key = None  # AUTO
     else:
-        enable_nodeset_key = (options.interpret_keys == THREE_CHOICES[2])
+        enable_nodeset_key = options.interpret_keys == THREE_CHOICES[2]
 
     # Create new message tree
     if options.trace_mode:
@@ -124,17 +130,18 @@ def clubak():
     # Feed the tree from standard input lines
     for line in sys_stdin():
         try:
-            linestripped = line.rstrip(b'\r\n')
+            linestripped = line.rstrip(b"\r\n")
             if options.verbose or options.debug:
-                sys.stdout.write('INPUT ' +
-                                 linestripped.decode(errors='replace') + '\n')
+                sys.stdout.write(
+                    "INPUT " + linestripped.decode(errors="replace") + "\n"
+                )
             key, content = linestripped.split(separator, 1)
             # NodeSet requires encoded string
-            key = key.strip().decode(errors='replace')
+            key = key.strip().decode(errors="replace")
             if not key:
                 raise ValueError("no node found")
             if enable_nodeset_key is False:  # interpret-keys=never?
-                keyset = [ key ]
+                keyset = [key]
             else:
                 try:
                     keyset = NodeSet(key)
@@ -142,7 +149,7 @@ def clubak():
                     if enable_nodeset_key:  # interpret-keys=always?
                         raise
                     enable_nodeset_key = False  # auto => switch off
-                    keyset = [ key ]
+                    keyset = [key]
             if fast_mode:
                 for node in keyset:
                     preload_msgs.setdefault(node, []).append(content)
@@ -150,14 +157,13 @@ def clubak():
                 for node in keyset:
                     tree.add(node, content)
         except ValueError as ex:
-            raise ValueError('%s: "%s"' %
-                             (ex, linestripped.decode(errors='replace')))
+            raise ValueError('%s: "%s"' % (ex, linestripped.decode(errors="replace")))
 
     if fast_mode:
         # Messages per node have been aggregated, now add to tree one
         # full msg per node
         for key, wholemsg in preload_msgs.items():
-            tree.add(key, b'\n'.join(wholemsg))
+            tree.add(key, b"\n".join(wholemsg))
 
     # Display results
     try:
@@ -168,11 +174,19 @@ def clubak():
 
     if options.debug:
         std_group_resolver().set_verbosity(1)
-        print("clubak: line_mode=%s gather=%s tree_depth=%d"
-              % (bool(options.line_mode), bool(disp.gather), tree._depth()),
-              file=sys.stderr)
-    display(tree, disp, disp.gather or disp.regroup, \
-            options.trace_mode, enable_nodeset_key is not False)
+        print(
+            "clubak: line_mode=%s gather=%s tree_depth=%d"
+            % (bool(options.line_mode), bool(disp.gather), tree._depth()),
+            file=sys.stderr,
+        )
+    display(
+        tree,
+        disp,
+        disp.gather or disp.regroup,
+        options.trace_mode,
+        enable_nodeset_key is not False,
+    )
+
 
 def main():
     """main script function"""
@@ -187,5 +201,5 @@ def main():
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

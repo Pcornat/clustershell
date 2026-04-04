@@ -6,14 +6,14 @@
 import os
 import unittest
 
-from .TLib import HOSTNAME, make_temp_file, make_temp_filename, make_temp_dir
-
 from ClusterShell.Event import EventHandler
-from ClusterShell.Worker.Exec import ExecWorker, WorkerError
 from ClusterShell.Task import task_self
+from ClusterShell.Worker.Exec import ExecWorker, WorkerError
+
+from .TLib import HOSTNAME, make_temp_dir, make_temp_file, make_temp_filename
+
 
 class ExecTest(unittest.TestCase):
-
     def execw(self, **kwargs):
         """helper method to spawn and run ExecWorker"""
         worker = ExecWorker(**kwargs)
@@ -29,23 +29,25 @@ class ExecTest(unittest.TestCase):
     def test_shell_syntax(self):
         """test ExecWorker with a command using shell syntax"""
         cmd = "echo -n 1; echo -n 2"
-        self.execw(nodes='localhost', handler=None, command=cmd)
+        self.execw(nodes="localhost", handler=None, command=cmd)
         self.assertEqual(task_self().max_retcode(), 0)
-        self.assertEqual(task_self().node_buffer('localhost'), b'12')
+        self.assertEqual(task_self().node_buffer("localhost"), b"12")
 
     def test_one_node(self):
         """test ExecWorker with a simple command on localhost"""
-        self.execw(nodes='localhost', handler=None, command="echo ok")
+        self.execw(nodes="localhost", handler=None, command="echo ok")
         self.assertEqual(task_self().max_retcode(), 0)
-        self.assertEqual(task_self().node_buffer('localhost'), b'ok')
+        self.assertEqual(task_self().node_buffer("localhost"), b"ok")
 
     def test_one_node_error(self):
         """test ExecWorker with an error command on localhost"""
-        self.execw(nodes='localhost', handler=None, command="false")
+        self.execw(nodes="localhost", handler=None, command="false")
         self.assertEqual(task_self().max_retcode(), 1)
-        self.assertEqual(task_self().node_buffer('localhost'), b'')
+        self.assertEqual(task_self().node_buffer("localhost"), b"")
 
-    @unittest.skipIf(HOSTNAME == 'localhost', "does not work with hostname set to 'localhost'")
+    @unittest.skipIf(
+        HOSTNAME == "localhost", "does not work with hostname set to 'localhost'"
+    )
     def test_timeout(self):
         """test ExecWorker with a timeout"""
         nodes = "localhost,%s" % HOSTNAME
@@ -58,24 +60,29 @@ class ExecTest(unittest.TestCase):
         nodes = "localhost,%s" % HOSTNAME
         self.execw(nodes=nodes, handler=None, command="echo %h")
         self.assertEqual(task_self().max_retcode(), 0)
-        self.assertEqual(task_self().node_buffer('localhost'), b'localhost')
-        self.assertEqual(task_self().node_buffer(HOSTNAME), HOSTNAME.encode('utf-8'))
+        self.assertEqual(task_self().node_buffer("localhost"), b"localhost")
+        self.assertEqual(task_self().node_buffer(HOSTNAME), HOSTNAME.encode("utf-8"))
 
     def test_bad_placeholder(self):
         """test ExecWorker with unknown placeholder pattern"""
-        self.assertRaises(WorkerError, self.execw,
-                          nodes="localhost", handler=None, command="echo %x")
-        self.assertRaises(WorkerError, self.execw,
-                          nodes="localhost", handler=None, command="echo %")
+        self.assertRaises(
+            WorkerError, self.execw, nodes="localhost", handler=None, command="echo %x"
+        )
+        self.assertRaises(
+            WorkerError, self.execw, nodes="localhost", handler=None, command="echo %"
+        )
 
-    @unittest.skipIf(HOSTNAME == 'localhost', "does not work with hostname set to 'localhost'")
+    @unittest.skipIf(
+        HOSTNAME == "localhost", "does not work with hostname set to 'localhost'"
+    )
     def test_rank_placeholder(self):
         """test ExecWorker with several nodes and %n (rank)"""
         nodes = "localhost,%s" % HOSTNAME
         self.execw(nodes=nodes, handler=None, command="echo %n")
         self.assertEqual(task_self().max_retcode(), 0)
-        self.assertEqual(set(bytes(msg) for msg, _ in task_self().iter_buffers()),
-                         set([b'0', b'1']))
+        self.assertEqual(
+            set(bytes(msg) for msg, _ in task_self().iter_buffers()), set([b"0", b"1"])
+        )
 
     def test_copy(self):
         """test copying with an ExecWorker and host placeholder"""
@@ -84,12 +91,11 @@ class ExecTest(unittest.TestCase):
         dstpath = os.path.join(dstdir.name, os.path.basename(src.name))
         try:
             pattern = dstpath + ".%h"
-            self.execw(nodes='localhost', handler=None, source=src.name,
-                       dest=pattern)
+            self.execw(nodes="localhost", handler=None, source=src.name, dest=pattern)
             self.assertEqual(task_self().max_retcode(), 0)
-            self.assertTrue(os.path.isfile(dstpath + '.localhost'))
+            self.assertTrue(os.path.isfile(dstpath + ".localhost"))
         finally:
-            os.unlink(dstpath + '.localhost')
+            os.unlink(dstpath + ".localhost")
             dstdir.cleanup()
 
     def test_copy_preserve(self):
@@ -99,8 +105,13 @@ class ExecTest(unittest.TestCase):
         os.utime(src.name, (past_time, past_time))
         dstpath = make_temp_filename()
         try:
-            self.execw(nodes='localhost', handler=None, source=src.name,
-                       dest=dstpath, preserve=True)
+            self.execw(
+                nodes="localhost",
+                handler=None,
+                source=src.name,
+                dest=dstpath,
+                preserve=True,
+            )
             self.assertEqual(task_self().max_retcode(), 0)
             self.assertTrue(os.stat(dstpath).st_mtime, past_time)
         finally:
@@ -114,8 +125,9 @@ class ExecTest(unittest.TestCase):
         pathdstsrcdir = os.path.join(dstdir.name, os.path.basename(srcdir.name))
         pathdst1 = os.path.join(pathdstsrcdir, os.path.basename(ref1.name))
         try:
-            self.execw(nodes='localhost', handler=None, source=srcdir.name,
-                       dest=dstdir.name)
+            self.execw(
+                nodes="localhost", handler=None, source=srcdir.name, dest=dstdir.name
+            )
             self.assertEqual(task_self().max_retcode(), 0)
             self.assertTrue(os.path.isdir(pathdstsrcdir))
             self.assertTrue(os.path.isfile(pathdst1))
@@ -134,8 +146,13 @@ class ExecTest(unittest.TestCase):
         dst = make_temp_file(b"data")
         ref1 = make_temp_file(b"data1", dir=srcdir.name)
         try:
-            self.execw(nodes='localhost', handler=None, source=srcdir.name,
-                       dest=dst.name, stderr=True)
+            self.execw(
+                nodes="localhost",
+                handler=None,
+                source=srcdir.name,
+                dest=dst.name,
+                stderr=True,
+            )
             self.assertEqual(task_self().max_retcode(), 1)
             self.assertTrue(len(task_self().node_error("localhost")) > 0)
             self.assertTrue(os.path.isfile(ref1.name))
@@ -148,9 +165,16 @@ class ExecTest(unittest.TestCase):
         with make_temp_dir() as dstbasedirname:
             dstdir = os.path.join(dstbasedirname, "wrong")
             src = make_temp_file(b"data")
-            self.assertRaises(ValueError, self.execw, nodes='localhost',
-                              handler=None, source=src.name, dest=dstdir,
-                              stderr=True, reverse=True)
+            self.assertRaises(
+                ValueError,
+                self.execw,
+                nodes="localhost",
+                handler=None,
+                source=src.name,
+                dest=dstdir,
+                stderr=True,
+                reverse=True,
+            )
 
     def test_abort_on_read(self):
         """test ExecWorker.abort() on read"""
@@ -160,10 +184,11 @@ class ExecTest(unittest.TestCase):
                 worker.abort()
                 worker.abort()  # safe but no effect
 
-        self.execw(nodes='localhost', handler=TestH(),
-                   command="echo ok; tail -f /dev/null")
+        self.execw(
+            nodes="localhost", handler=TestH(), command="echo ok; tail -f /dev/null"
+        )
         self.assertEqual(task_self().max_retcode(), None)
-        self.assertEqual(task_self().node_buffer('localhost'), b'ok')
+        self.assertEqual(task_self().node_buffer("localhost"), b"ok")
 
     def test_abort_on_close(self):
         """test ExecWorker.abort() on close"""
@@ -173,7 +198,6 @@ class ExecTest(unittest.TestCase):
                 worker.abort()
                 worker.abort()  # safe but no effect
 
-        self.execw(nodes='localhost', handler=TestH(),
-                   command="echo ok; sleep .1")
+        self.execw(nodes="localhost", handler=TestH(), command="echo ok; sleep .1")
         self.assertEqual(task_self().max_retcode(), 0)
-        self.assertEqual(task_self().node_buffer('localhost'), b'ok')
+        self.assertEqual(task_self().node_buffer("localhost"), b"ok")

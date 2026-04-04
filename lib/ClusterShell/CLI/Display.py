@@ -25,8 +25,8 @@ CLI results display class
 from __future__ import print_function
 
 import difflib
-import sys
 import os
+import sys
 
 from ClusterShell.NodeSet import NodeSet
 
@@ -36,22 +36,24 @@ VERB_STD = 1
 VERB_VERB = 2
 VERB_DEBUG = 3
 THREE_CHOICES = ["", "never", "always", "auto"]
-WHENCOLOR_CHOICES = THREE_CHOICES   # deprecated; use THREE_CHOICES
+WHENCOLOR_CHOICES = THREE_CHOICES  # deprecated; use THREE_CHOICES
 
-if sys.getdefaultencoding() == 'ascii':
-    STRING_ENCODING = 'utf-8'  # enforce UTF-8 with Python 2
+if sys.getdefaultencoding() == "ascii":
+    STRING_ENCODING = "utf-8"  # enforce UTF-8 with Python 2
 else:
     STRING_ENCODING = sys.getdefaultencoding()
 
+
 # Python 3 compat: wrapper for stdin
 def sys_stdin():
-    return getattr(sys.stdin, 'buffer', sys.stdin)
+    return getattr(sys.stdin, "buffer", sys.stdin)
 
 
 class Display(object):
     """
     Output display class for command line scripts.
     """
+
     COLOR_RESULT_FMT = "\033[92m%s\033[0m"
     COLOR_STDOUT_FMT = "\033[94m%s\033[0m"
     COLOR_STDERR_FMT = "\033[91m%s\033[0m"
@@ -63,6 +65,7 @@ class Display(object):
 
     class _KeySet(set):
         """Private NodeSet substitution to display raw keys"""
+
         def __str__(self):
             return ",".join(self)
 
@@ -81,7 +84,7 @@ class Display(object):
         self._diffref = None
         # diff implies at least -b
         self.gather = options.gatherall or options.gather or options.diff
-        self.progress = getattr(options, 'progress', False) # only in clush
+        self.progress = getattr(options, "progress", False)  # only in clush
         # check parameter compatibility
         if options.diff and options.line_mode:
             raise ValueError("diff not supported in line_mode")
@@ -93,7 +96,7 @@ class Display(object):
         self.outdir = options.outdir
         self.errdir = options.errdir
         # display may change when 'max return code' option is set
-        self.maxrc = getattr(options, 'maxrc', False)
+        self.maxrc = getattr(options, "maxrc", False)
 
         # Be compliant with NO_COLOR and CLI_COLORS trying to solve #428
         # See https://no-color.org/ and https://bixense.com/clicolors/
@@ -101,8 +104,8 @@ class Display(object):
         # takes precedence over any environment variable.
 
         if options.whencolor is None and color is not False:
-            if (config is None) or (config.color == '' or config.color == 'auto'):
-                if 'NO_COLOR' not in os.environ:
+            if (config is None) or (config.color == "" or config.color == "auto"):
+                if "NO_COLOR" not in os.environ:
                     color = self._has_cli_color()
                 else:
                     color = False
@@ -118,13 +121,13 @@ class Display(object):
         self._color = color
         # GH#528 enable line buffering
         self.out = sys.stdout
-        try :
+        try:
             if not self.out.line_buffering:
                 self.out.reconfigure(line_buffering=True)
         except AttributeError:  # < py3.7
             pass
         self.err = sys.stderr
-        try :
+        try:
             if not self.err.line_buffering:
                 self.err.reconfigure(line_buffering=True)
         except AttributeError:  # < py3.7
@@ -138,9 +141,9 @@ class Display(object):
             self.color_diffadd_fmt = self.COLOR_DIFFADD_FMT
             self.color_diffdel_fmt = self.COLOR_DIFFDEL_FMT
         else:
-            self.color_stdout_fmt = self.color_stderr_fmt = \
-                self.color_diffhdr_fmt = self.color_diffctx_fmt = \
-                self.color_diffadd_fmt = self.color_diffdel_fmt = "%s"
+            self.color_stdout_fmt = self.color_stderr_fmt = self.color_diffhdr_fmt = (
+                self.color_diffctx_fmt
+            ) = self.color_diffadd_fmt = self.color_diffdel_fmt = "%s"
 
         # Set display verbosity
         if config:
@@ -150,11 +153,11 @@ class Display(object):
         else:
             self.node_count = True
             self.verbosity = VERB_STD
-            if hasattr(options, 'quiet') and options.quiet:
+            if hasattr(options, "quiet") and options.quiet:
                 self.verbosity = VERB_QUIET
-            if hasattr(options, 'verbose') and options.verbose:
+            if hasattr(options, "verbose") and options.verbose:
                 self.verbosity = VERB_VERB
-            if hasattr(options, 'debug') and options.debug:
+            if hasattr(options, "debug") and options.debug:
                 self.verbosity = VERB_DEBUG
 
     def _has_cli_color(self):
@@ -192,6 +195,7 @@ class Display(object):
             self._display = self._print_lines
         else:
             self._display = self._print_buffer
+
     line_mode = property(_getlmode, _setlmode)
 
     def _format_nodeset(self, nodeset):
@@ -208,15 +212,23 @@ class Display(object):
         nodecntstr = ""
         if self.verbosity >= VERB_STD and self.node_count and len(nodeset) > 1:
             nodecntstr = " (%d)" % len(nodeset)
-        hdr = self.color_stdout_fmt % ("%s%s\n%s%s%s\n%s%s" % \
-            (indstr, self.SEP,
-             indstr, self._format_nodeset(nodeset), nodecntstr,
-             indstr, self.SEP))
-        return hdr + '\n'
+        hdr = self.color_stdout_fmt % (
+            "%s%s\n%s%s%s\n%s%s"
+            % (
+                indstr,
+                self.SEP,
+                indstr,
+                self._format_nodeset(nodeset),
+                nodecntstr,
+                indstr,
+                self.SEP,
+            )
+        )
+        return hdr + "\n"
 
     def print_line(self, nodeset, line):
         """Display a line with optional label."""
-        linestr = line.decode(STRING_ENCODING, errors='replace') + '\n'
+        linestr = line.decode(STRING_ENCODING, errors="replace") + "\n"
         if self.label:
             prefix = self.color_stdout_fmt % ("%s: " % nodeset)
             self.out.write(prefix + linestr)
@@ -225,7 +237,7 @@ class Display(object):
 
     def print_line_error(self, nodeset, line):
         """Display an error line with optional label."""
-        linestr = line.decode(STRING_ENCODING, errors='replace') + '\n'
+        linestr = line.decode(STRING_ENCODING, errors="replace") + "\n"
         if self.label:
             prefix = self.color_stderr_fmt % ("%s: " % nodeset)
             self.err.write(prefix + linestr)
@@ -240,7 +252,7 @@ class Display(object):
     def print_gather_finalize(self, nodeset):
         """Finalize display of diff-like gathered contents."""
         if self._display == self._print_diff and self._diffref:
-            return self._display(nodeset, '')
+            return self._display(nodeset, "")
 
     def print_gather_keys(self, keys, obj):
         """Generic method for displaying raw keys/content according to current
@@ -249,8 +261,8 @@ class Display(object):
 
     def _print_content(self, nodeset, content):
         """Display a dshbak-like header block and content."""
-        s = bytes(content).decode(STRING_ENCODING, errors='replace')
-        self.out.write(self.format_header(nodeset) + s + '\n')
+        s = bytes(content).decode(STRING_ENCODING, errors="replace")
+        self.out.write(self.format_header(nodeset) + s + "\n")
 
     def _print_diff(self, nodeset, content):
         """Display unified diff between remote gathered outputs."""
@@ -266,38 +278,38 @@ class Display(object):
                 if len(nodeset) > 1:
                     nsstr += " (%d)" % len(nodeset)
 
-            alist = [aline.decode('utf-8', 'ignore') for aline in content_ref]
-            blist = [bline.decode('utf-8', 'ignore') for bline in content]
-            udiff = difflib.unified_diff(alist, blist, fromfile=nsstr_ref,
-                                         tofile=nsstr, lineterm='')
-            output = ''
+            alist = [aline.decode("utf-8", "ignore") for aline in content_ref]
+            blist = [bline.decode("utf-8", "ignore") for bline in content]
+            udiff = difflib.unified_diff(
+                alist, blist, fromfile=nsstr_ref, tofile=nsstr, lineterm=""
+            )
+            output = ""
             for line in udiff:
-                if line.startswith('---') or line.startswith('+++'):
+                if line.startswith("---") or line.startswith("+++"):
                     output += self.color_diffhdr_fmt % line.rstrip()
-                elif line.startswith('@@'):
+                elif line.startswith("@@"):
                     output += self.color_diffctx_fmt % line
-                elif line.startswith('+'):
+                elif line.startswith("+"):
                     output += self.color_diffadd_fmt % line
-                elif line.startswith('-'):
+                elif line.startswith("-"):
                     output += self.color_diffdel_fmt % line
                 else:
                     output += line
-                output += '\n'
+                output += "\n"
             self.out.write(output)
 
     def _print_lines(self, nodeset, msg):
         """Display a MsgTree buffer by line with prefixed header."""
         out = self.out
         if self.label:
-            header = self.color_stdout_fmt % \
-                        ("%s: " % self._format_nodeset(nodeset))
+            header = self.color_stdout_fmt % ("%s: " % self._format_nodeset(nodeset))
             for line in msg:
-                out.write(header + line.decode(STRING_ENCODING,
-                                               errors='replace') + '\n')
+                out.write(
+                    header + line.decode(STRING_ENCODING, errors="replace") + "\n"
+                )
         else:
             for line in msg:
-                out.write(line.decode(STRING_ENCODING,
-                                      errors='replace') + '\n')
+                out.write(line.decode(STRING_ENCODING, errors="replace") + "\n")
 
     def vprint(self, level, message):
         """Utility method to print a message if verbose level is high
@@ -310,4 +322,3 @@ class Display(object):
         is high enough."""
         if self.verbosity >= level:
             print(message, file=sys.stderr)
-

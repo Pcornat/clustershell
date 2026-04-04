@@ -25,21 +25,23 @@ ClusterShell worker for executing local commands.
 
 Usage example:
    >>> worker = WorkerPopen("/bin/uname", key="mykernel")
-   >>> task.schedule(worker)    # schedule worker
-   >>> task.resume()            # run task
-   >>> worker.retcode()         # get return code
+   >>> task.schedule(worker)  # schedule worker
+   >>> task.resume()  # run task
+   >>> worker.retcode()  # get return code
    0
-   >>> worker.read()            # read command output
+   >>> worker.read()  # read command output
    'Linux'
 
 """
 
-from ClusterShell.Worker.Worker import WorkerSimple, StreamClient
-from ClusterShell.Worker.Worker import _eh_sigspec_invoke_compat
+from ClusterShell.Worker.Worker import (
+    StreamClient,
+    WorkerSimple,
+    _eh_sigspec_invoke_compat,
+)
 
 
 class PopenClient(StreamClient):
-
     def __init__(self, worker, key, stderr, timeout, autoclose):
         """PopenClient initializer"""
         StreamClient.__init__(self, worker, key, stderr, timeout, autoclose)
@@ -71,7 +73,7 @@ class PopenClient(StreamClient):
             prc = self.popen.poll()
             # if prc is None, process is still running
             if prc is None:
-                try: # try to kill it
+                try:  # try to kill it
                     self.popen.kill()
                 except OSError:
                     pass
@@ -80,7 +82,7 @@ class PopenClient(StreamClient):
         self.streams.clear()
         self.invalidate()
 
-        if prc >= 0: # filter valid rc
+        if prc >= 0:  # filter valid rc
             self.rc = prc
             self.worker._on_close(self.key, prc)
         elif timeout:
@@ -92,27 +94,38 @@ class PopenClient(StreamClient):
             self.worker._on_close(self.key, self.rc)
 
         if self.worker.eh is not None:
-            _eh_sigspec_invoke_compat(self.worker.eh.ev_close, 2, self.worker,
-                                      timeout)
+            _eh_sigspec_invoke_compat(self.worker.eh.ev_close, 2, self.worker, timeout)
 
 
 class WorkerPopen(WorkerSimple):
     """
     Implements the Popen Worker.
     """
-    def __init__(self, command, key=None, handler=None,
-                 stderr=False, timeout=-1, autoclose=False):
+
+    def __init__(
+        self, command, key=None, handler=None, stderr=False, timeout=-1, autoclose=False
+    ):
         """Initialize Popen worker."""
-        WorkerSimple.__init__(self, None, None, None, key, handler, stderr,
-                              timeout, autoclose, client_class=PopenClient)
+        WorkerSimple.__init__(
+            self,
+            None,
+            None,
+            None,
+            key,
+            handler,
+            stderr,
+            timeout,
+            autoclose,
+            client_class=PopenClient,
+        )
         self.command = command
         if not self.command:
-            raise ValueError("missing command parameter in WorkerPopen "
-                             "constructor")
+            raise ValueError("missing command parameter in WorkerPopen constructor")
         self.key = key
 
     def retcode(self):
         """Return return code or None if command is still in progress."""
         return self.clients[0].rc
+
 
 WORKER_CLASS = WorkerPopen

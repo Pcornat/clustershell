@@ -6,13 +6,13 @@
 import resource
 import unittest
 
-from .TLib import HOSTNAME
 from ClusterShell.Task import *
 from ClusterShell.Worker.Pdsh import WorkerPdsh
 
+from .TLib import HOSTNAME
+
 
 class TaskRLimitsTest(unittest.TestCase):
-
     def setUp(self):
         """set soft nofile resource limit to 100"""
         self.soft, self.hard = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -42,8 +42,7 @@ class TaskRLimitsTest(unittest.TestCase):
         task = task_self()
         task.set_info("fanout", 10)
         for i in range(400):
-            worker = task.shell("/bin/hostname", nodes=HOSTNAME,
-                                stderr=stderr)
+            worker = task.shell("/bin/hostname", nodes=HOSTNAME, stderr=stderr)
         # run task
         task.resume()
 
@@ -59,10 +58,13 @@ class TaskRLimitsTest(unittest.TestCase):
         task = task_self()
         task.set_info("fanout", 10)
         for i in range(200):
-            worker = WorkerPdsh(HOSTNAME, handler=None,
-                                timeout=0,
-                                command="/bin/hostname",
-                                stderr=stderr)
+            worker = WorkerPdsh(
+                HOSTNAME,
+                handler=None,
+                timeout=0,
+                command="/bin/hostname",
+                stderr=stderr,
+            )
             task.schedule(worker)
         # run task
         task.resume()

@@ -24,11 +24,12 @@ This module implements OpenSSH engine client and task's worker.
 """
 
 import os
+
 # Older versions of shlex can not handle unicode correctly.
 # Consider using ushlex instead.
 import shlex
 
-from ClusterShell.Worker.Exec import ExecClient, CopyClient, ExecWorker
+from ClusterShell.Worker.Exec import CopyClient, ExecClient, ExecWorker
 
 
 class SshClient(ExecClient):
@@ -78,6 +79,7 @@ class SshClient(ExecClient):
 
         return (cmd_l, None)
 
+
 class ScpClient(CopyClient):
     """
     Scp EngineClient.
@@ -120,8 +122,7 @@ class ScpClient(CopyClient):
         # Disable passphrase/password querying
         # When used together with sshpass this must be overwritten
         # by a custom option to "-oBatchMode=no".
-        #cmd_l.append("-oBatchMode=yes")
-
+        # cmd_l.append("-oBatchMode=yes")
 
         if self.reverse:
             if user:
@@ -129,8 +130,11 @@ class ScpClient(CopyClient):
             else:
                 cmd_l.append("[%s]:%s" % (self.key, self.source))
 
-            cmd_l.append(os.path.join(self.dest, "%s.%s" % \
-                         (os.path.basename(self.source), self.key)))
+            cmd_l.append(
+                os.path.join(
+                    self.dest, "%s.%s" % (os.path.basename(self.source), self.key)
+                )
+            )
         else:
             cmd_l.append(self.source)
             if user:
@@ -140,25 +144,32 @@ class ScpClient(CopyClient):
 
         return (cmd_l, None)
 
+
 class WorkerSsh(ExecWorker):
     """
     ClusterShell ssh-based worker Class.
 
     Remote Shell (ssh) usage example:
-       >>> worker = WorkerSsh(nodeset, handler=MyEventHandler(),
-       ...                    timeout=30, command="/bin/hostname")
-       >>> task.schedule(worker)      # schedule worker for execution
-       >>> task.resume()              # run
+       >>> worker = WorkerSsh(
+       ...     nodeset, handler=MyEventHandler(), timeout=30, command="/bin/hostname"
+       ... )
+       >>> task.schedule(worker)  # schedule worker for execution
+       >>> task.resume()  # run
 
     Remote Copy (scp) usage example:
-       >>> worker = WorkerSsh(nodeset, handler=MyEventHandler(),
-       ...                    timeout=30, source="/etc/my.conf",
-       ...                    dest="/etc/my.conf")
-       >>> task.schedule(worker)      # schedule worker for execution
-       >>> task.resume()              # run
+       >>> worker = WorkerSsh(
+       ...     nodeset,
+       ...     handler=MyEventHandler(),
+       ...     timeout=30,
+       ...     source="/etc/my.conf",
+       ...     dest="/etc/my.conf",
+       ... )
+       >>> task.schedule(worker)  # schedule worker for execution
+       >>> task.resume()  # run
     """
 
     SHELL_CLASS = SshClient
     COPY_CLASS = ScpClient
 
-WORKER_CLASS=WorkerSsh
+
+WORKER_CLASS = WorkerSsh

@@ -6,9 +6,7 @@ import os
 import socket
 import sys
 import time
-
-from tempfile import mkstemp
-from tempfile import TemporaryFile, NamedTemporaryFile, TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory, TemporaryFile, mkstemp
 
 try:
     import configparser
@@ -17,12 +15,18 @@ except ImportError:
 
 from io import BytesIO, StringIO
 
-
-__all__ = ['HOSTNAME', 'load_cfg', 'make_temp_filename', 'make_temp_file',
-           'make_temp_dir', 'CLI_main']
+__all__ = [
+    "HOSTNAME",
+    "load_cfg",
+    "make_temp_filename",
+    "make_temp_file",
+    "make_temp_dir",
+    "CLI_main",
+]
 
 # Get machine short hostname
-HOSTNAME = socket.gethostname().split('.', 1)[0]
+HOSTNAME = socket.gethostname().split(".", 1)[0]
+
 
 class TBytesIO(BytesIO):
     """Standard stream of in memory bytes for testing purpose."""
@@ -42,43 +46,49 @@ class TBytesIO(BytesIO):
 def load_cfg(name):
     """Load test configuration file as a new ConfigParser"""
     cfgparser = configparser.ConfigParser()
-    cfgparser.read([ \
-        os.path.expanduser('~/.clustershell/tests/%s' % name),
-        '/etc/clustershell/tests/%s' % name])
+    cfgparser.read(
+        [
+            os.path.expanduser("~/.clustershell/tests/%s" % name),
+            "/etc/clustershell/tests/%s" % name,
+        ]
+    )
     return cfgparser
+
 
 #
 # Temp files and directories
 #
-def make_temp_filename(suffix=''):
+def make_temp_filename(suffix=""):
     """Return a temporary name for a file."""
-    if len(suffix) > 0 and suffix[0] != '-':
-        suffix = '-' + suffix
-    fd, name = mkstemp(suffix, prefix='cs-test-')
+    if len(suffix) > 0 and suffix[0] != "-":
+        suffix = "-" + suffix
+    fd, name = mkstemp(suffix, prefix="cs-test-")
     os.close(fd)  # don't leak open fd
     return name
 
-def make_temp_file(text, suffix='', dir=None):
+
+def make_temp_file(text, suffix="", dir=None):
     """Create a temporary file with the provided text."""
     assert type(text) is bytes
-    tmp = NamedTemporaryFile(prefix='cs-test-',
-                             suffix=suffix, dir=dir)
+    tmp = NamedTemporaryFile(prefix="cs-test-", suffix=suffix, dir=dir)
     tmp.write(text)
     tmp.flush()
     return tmp
 
-def make_temp_dir(suffix=''):
+
+def make_temp_dir(suffix=""):
     """Create a temporary directory."""
-    if len(suffix) > 0 and suffix[0] != '-':
-        suffix = '-' + suffix
-    return TemporaryDirectory(suffix, prefix='cs-test-')
+    if len(suffix) > 0 and suffix[0] != "-":
+        suffix = "-" + suffix
+    return TemporaryDirectory(suffix, prefix="cs-test-")
 
 
 #
 # CLI tests
 #
-def CLI_main(test, main, args, stdin, expected_stdout, expected_rc=0,
-             expected_stderr=None):
+def CLI_main(
+    test, main, args, stdin, expected_stdout, expected_rc=0, expected_stderr=None
+):
     """Generic CLI main() direct calling function that allows code coverage
     checks."""
     rc = -1
@@ -140,12 +150,13 @@ def CLI_main(test, main, args, stdin, expected_stdout, expected_rc=0,
             except AttributeError:
                 # check the end as stderr messages are often prefixed with
                 # argv[0]
-                test.assertTrue(err.getvalue().endswith(expected_stderr),
-                                err.getvalue() + b' != ' + expected_stderr)
+                test.assertTrue(
+                    err.getvalue().endswith(expected_stderr),
+                    err.getvalue() + b" != " + expected_stderr,
+                )
 
         if expected_rc is not None:
-            test.assertEqual(rc, expected_rc,
-                             "rc=%d err=%s" % (rc, err.getvalue()))
+            test.assertEqual(rc, expected_rc, "rc=%d err=%s" % (rc, err.getvalue()))
     finally:
         out.close()
         err.close()

@@ -35,7 +35,6 @@ except ImportError:  # Python 2 compat
 
 import sys
 
-
 # MsgTree behavior modes
 MODE_DEFER = 0
 MODE_SHIFT = 1
@@ -49,6 +48,7 @@ class MsgTreeElem(object):
     methods like messages() or walk(). The object can then be used as
     an iterator over the message lines or casted into a bytes buffer.
     """
+
     def __init__(self, msgline=None, parent=None, trace=False):
         """
         Initialize message tree element.
@@ -129,7 +129,7 @@ class MsgTreeElem(object):
         """
         Get the whole message buffer (from this tree element) as bytes.
         """
-        return b'\n'.join(self.lines())
+        return b"\n".join(self.lines())
 
     __bytes__ = message
 
@@ -140,8 +140,9 @@ class MsgTreeElem(object):
         DEPRECATED: use message() or cast to bytes instead.
         """
         if sys.version_info >= (3, 0):
-            raise TypeError('cannot get string from %s, use bytes instead' %
-                            self.__class__.__name__)
+            raise TypeError(
+                "cannot get string from %s, use bytes instead" % self.__class__.__name__
+            )
         else:
             # in Python 2, str and bytes are actually the same type
             return self.message()
@@ -155,8 +156,7 @@ class MsgTreeElem(object):
         # get/create child element
         elem = self.children.get(msgline)
         if elem is None:
-            elem = self.__class__(msgline, self,
-                                  self._shift == self._shift_trace)
+            elem = self.__class__(msgline, self, self._shift == self._shift_trace)
             self.children[msgline] = elem
 
         # if no key is given, MsgTree is in MODE_DEFER
@@ -302,7 +302,7 @@ class MsgTree(object):
             children = elem.children
             if len(children) > 0:
                 estack += children.values()
-            if elem.keys: # has some keys
+            if elem.keys:  # has some keys
                 mkeys = list(filter(match, elem.keys))
                 if len(mkeys):
                     if mapper is not None:
@@ -319,8 +319,7 @@ class MsgTree(object):
         Return an iterator over 4-length tuples (msgline, keys, depth,
         num_children).
         """
-        assert self.mode == MODE_TRACE, \
-            "walk_trace() is only callable in trace mode"
+        assert self.mode == MODE_TRACE, "walk_trace() is only callable in trace mode"
         # stack of (element, depth) tuples used to walk the tree
         estack = [(self._root, 0)]
         while estack:
@@ -354,7 +353,7 @@ class MsgTree(object):
                 elem = estack.pop()
                 if len(elem.children) > 0:
                     estack += elem.children.values()
-                if elem.keys: # has some keys
+                if elem.keys:  # has some keys
                     elem.keys = set(filterfalse(match, elem.keys))
 
         # remove key(s) from known keys dict

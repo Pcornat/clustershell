@@ -22,8 +22,8 @@
 CLI utility functions
 """
 
+(KIBI, MEBI, GIBI, TEBI) = (1024.0, 1024.0**2, 1024.0**3, 1024.0**4)
 
-(KIBI, MEBI, GIBI, TEBI) = (1024.0, 1024.0 ** 2, 1024.0 ** 3, 1024.0 ** 4)
 
 def human_bi_bytes_unit(value):
     """
@@ -42,9 +42,11 @@ def human_bi_bytes_unit(value):
         fmt = "%d B" % value
     return fmt
 
+
 def nodeset_cmpkey(nodeset):
     """We want larger nodeset first, then sorted by first node index."""
     return -len(nodeset), nodeset[0]
+
 
 def bufnodeset_cmpkey(buf):
     """Helper to get nodeset compare key from a buffer (buf, nodeset)"""

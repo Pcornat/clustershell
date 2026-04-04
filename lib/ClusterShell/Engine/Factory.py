@@ -38,15 +38,17 @@ class PreferredEngine(object):
     Preferred Engine selection metaclass (DP Abstract Factory).
     """
 
-    engines = {EngineEPoll.identifier: EngineEPoll,
-               EnginePoll.identifier: EnginePoll,
-               EngineSelect.identifier: EngineSelect}
+    engines = {
+        EngineEPoll.identifier: EngineEPoll,
+        EnginePoll.identifier: EnginePoll,
+        EngineSelect.identifier: EngineSelect,
+    }
 
     def __new__(cls, hint, info):
         """
         Create a new preferred Engine.
         """
-        if not hint or hint == 'auto':
+        if not hint or hint == "auto":
             # in order or preference
             for engine_class in [EngineEPoll, EnginePoll, EngineSelect]:
                 try:

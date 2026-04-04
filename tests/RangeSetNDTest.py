@@ -11,7 +11,6 @@ from ClusterShell.RangeSet import RangeSet, RangeSetND
 
 
 class RangeSetNDTest(unittest.TestCase):
-
     def setUp(self):
         warnings.simplefilter("always")
 
@@ -25,7 +24,11 @@ class RangeSetNDTest(unittest.TestCase):
         self._testRS(None, "", 0)
         self._testRS([["0-10"], ["40-60"]], "0-10,40-60\n", 32)
         self._testRS([["0-2", "1-2"], ["10", "3-5"]], "0-2; 1-2\n10; 3-5\n", 9)
-        self._testRS([[0, 1], [0, 2], [2, 2], [2, 1], [1, 1], [1, 2], [10, 4], [10, 5], [10, 3]], "0-2; 1-2\n10; 3-5\n", 9)
+        self._testRS(
+            [[0, 1], [0, 2], [2, 2], [2, 1], [1, 1], [1, 2], [10, 4], [10, 5], [10, 3]],
+            "0-2; 1-2\n10; 3-5\n",
+            9,
+        )
         self._testRS([(0, 4), (0, 5), (1, 4), (1, 5)], "0-1; 4-5\n", 4)
         # construct with copy_rangeset=False
         r0 = RangeSet("0-10,30-40,50")
@@ -38,7 +41,13 @@ class RangeSetNDTest(unittest.TestCase):
         rn = RangeSetND([["0-10", "1-2"], ["5-60", "2"]])
         # vectors() should perform automatic folding
 
-        self.assertEqual([[RangeSet("11-60"), RangeSet("2")], [RangeSet("0-10"), RangeSet("1-2")],], list(rn.vectors()))
+        self.assertEqual(
+            [
+                [RangeSet("11-60"), RangeSet("2")],
+                [RangeSet("0-10"), RangeSet("1-2")],
+            ],
+            list(rn.vectors()),
+        )
         self.assertEqual(str(rn), "11-60; 2\n0-10; 1-2\n")
         self.assertEqual(len(rn), 72)
 
@@ -59,7 +68,7 @@ class RangeSetNDTest(unittest.TestCase):
         self.assertNotEqual(r0, r2)
         self.assertNotEqual(r0, r3)
         self.assertNotEqual(r2, r3)
-        self.assertFalse(r3 == "foobar") # NotImplemented => object address comparison
+        self.assertFalse(r3 == "foobar")  # NotImplemented => object address comparison
 
     def test_dim(self):
         r0 = RangeSetND()
@@ -76,7 +85,7 @@ class RangeSetNDTest(unittest.TestCase):
     def test_contains(self):
         r1 = RangeSetND([["0-10"], ["40-60"]])
         r2 = RangeSetND()
-        self.assertTrue(r2 in r1) # <=> issubset()
+        self.assertTrue(r2 in r1)  # <=> issubset()
         r1 = RangeSetND()
         r2 = RangeSetND([["0-10"], ["40-60"]])
         self.assertFalse(r2 in r1)
@@ -139,43 +148,61 @@ class RangeSetNDTest(unittest.TestCase):
         self._testRS([["40-42", "5"], ["10-12", "6-7"]], "10-12; 6-7\n40-42; 5\n", 9)
         # sorting condition (3)
         self._testRS([["40-60", "5"], ["10-30", "6"]], "10-30; 6\n40-60; 5\n", 42)
-        self._testRS([["10-30", "3", "5"], ["10-30", "2", "6"]], "10-30; 2; 6\n10-30; 3; 5\n", 42)
-        self._testRS([["10-30", "2", "6"], ["10-30", "3", "5"]], "10-30; 2; 6\n10-30; 3; 5\n", 42)
+        self._testRS(
+            [["10-30", "3", "5"], ["10-30", "2", "6"]], "10-30; 2; 6\n10-30; 3; 5\n", 42
+        )
+        self._testRS(
+            [["10-30", "2", "6"], ["10-30", "3", "5"]], "10-30; 2; 6\n10-30; 3; 5\n", 42
+        )
         # sorting condition (4)
-        self._testRS([["10-30", "2,6", "6"], ["10-30", "2-3", "5"]], "10-30; 2; 5-6\n10-30; 3; 5\n10-30; 6; 6\n", 84)
+        self._testRS(
+            [["10-30", "2,6", "6"], ["10-30", "2-3", "5"]],
+            "10-30; 2; 5-6\n10-30; 3; 5\n10-30; 6; 6\n",
+            84,
+        )
         # the following test triggers folding loop protection
-        self._testRS([["40-60", "5"], ["30-50", "6"]], "40-50; 5-6\n30-39; 6\n51-60; 5\n", 42)
+        self._testRS(
+            [["40-60", "5"], ["30-50", "6"]], "40-50; 5-6\n30-39; 6\n51-60; 5\n", 42
+        )
         # 1D
         self._testRS([["40-60"], ["10-12"]], "10-12,40-60\n", 24)
 
     def test_folding(self):
-        self._testRS([["0-10"], ["11-60"]],
-                     "0-60\n", 61)
-        self._testRS([["0-2", "1-2"], ["3", "1-2"]],
-                     "0-3; 1-2\n", 8)
-        self._testRS([["3", "1-3"], ["0-2", "1-2"]],
-                     "0-2; 1-2\n3; 1-3\n", 9)
-        self._testRS([["0-2", "1-2"], ["3", "1-3"]],
-                     "0-2; 1-2\n3; 1-3\n", 9)
-        self._testRS([["0-2", "1-2"], ["1-3", "1-3"]],
-                     "1-3; 1-3\n0; 1-2\n", 11)
-        self._testRS([["0-2", "1-2", "0-4"], ["3", "1-2", "0-5"]],
-                     "0-2; 1-2; 0-4\n3; 1-2; 0-5\n", 42)
-        self._testRS([["0-2", "1-2", "0-4"], ["1-3", "1-3", "0-4"]],
-                     "1-3; 1-3; 0-4\n0; 1-2; 0-4\n", 55)
+        self._testRS([["0-10"], ["11-60"]], "0-60\n", 61)
+        self._testRS([["0-2", "1-2"], ["3", "1-2"]], "0-3; 1-2\n", 8)
+        self._testRS([["3", "1-3"], ["0-2", "1-2"]], "0-2; 1-2\n3; 1-3\n", 9)
+        self._testRS([["0-2", "1-2"], ["3", "1-3"]], "0-2; 1-2\n3; 1-3\n", 9)
+        self._testRS([["0-2", "1-2"], ["1-3", "1-3"]], "1-3; 1-3\n0; 1-2\n", 11)
+        self._testRS(
+            [["0-2", "1-2", "0-4"], ["3", "1-2", "0-5"]],
+            "0-2; 1-2; 0-4\n3; 1-2; 0-5\n",
+            42,
+        )
+        self._testRS(
+            [["0-2", "1-2", "0-4"], ["1-3", "1-3", "0-4"]],
+            "1-3; 1-3; 0-4\n0; 1-2; 0-4\n",
+            55,
+        )
 
         # triggers full expand heuristic
-        veclist = [item for x in range(0, 22, 2) for item in [(x,0), (x,1)]]
+        veclist = [item for x in range(0, 22, 2) for item in [(x, 0), (x, 1)]]
         self._testRS(veclist, "0-20/2; 0-1\n", 22)
 
         # the following test triggers folding loop protection
-        self._testRS([["0-100", "50-200"], ["2-101", "49"]],
-                     "2-100; 49-200\n0-1; 50-200\n101; 49\n", 15351)
+        self._testRS(
+            [["0-100", "50-200"], ["2-101", "49"]],
+            "2-100; 49-200\n0-1; 50-200\n101; 49\n",
+            15351,
+        )
         # the following test triggers full expand
         veclist = []
         for v1, v2, v3 in zip(range(30), range(5, 35), range(10, 40)):
             veclist.append((v1, v2, v3))
-        self._testRS(veclist, "0; 5; 10\n1; 6; 11\n10; 15; 20\n11; 16; 21\n12; 17; 22\n13; 18; 23\n14; 19; 24\n15; 20; 25\n16; 21; 26\n17; 22; 27\n18; 23; 28\n19; 24; 29\n2; 7; 12\n20; 25; 30\n21; 26; 31\n22; 27; 32\n23; 28; 33\n24; 29; 34\n25; 30; 35\n26; 31; 36\n27; 32; 37\n28; 33; 38\n29; 34; 39\n3; 8; 13\n4; 9; 14\n5; 10; 15\n6; 11; 16\n7; 12; 17\n8; 13; 18\n9; 14; 19\n", 30)
+        self._testRS(
+            veclist,
+            "0; 5; 10\n1; 6; 11\n10; 15; 20\n11; 16; 21\n12; 17; 22\n13; 18; 23\n14; 19; 24\n15; 20; 25\n16; 21; 26\n17; 22; 27\n18; 23; 28\n19; 24; 29\n2; 7; 12\n20; 25; 30\n21; 26; 31\n22; 27; 32\n23; 28; 33\n24; 29; 34\n25; 30; 35\n26; 31; 36\n27; 32; 37\n28; 33; 38\n29; 34; 39\n3; 8; 13\n4; 9; 14\n5; 10; 15\n6; 11; 16\n7; 12; 17\n8; 13; 18\n9; 14; 19\n",
+            30,
+        )
 
     def test_union(self):
         rn1 = RangeSetND([["10-100", "1-3"], ["1100-1300", "2-3"]])
@@ -190,9 +217,9 @@ class RangeSetNDTest(unittest.TestCase):
         rnu2 = rn1 | rn2
         self.assertEqual(str(rnu2), "10-100,1100-1200; 1-3\n1201-1300; 2-3\n")
         self.assertEqual(len(rnu2), 776)
-        self.assertEqual(rnu, rnu2) # btw test __eq__
-        self.assertNotEqual(rnu, rn1) # btw test __eq__
-        self.assertNotEqual(rnu, rn2) # btw test __eq__
+        self.assertEqual(rnu, rnu2)  # btw test __eq__
+        self.assertNotEqual(rnu, rn1)  # btw test __eq__
+        self.assertNotEqual(rnu, rn2)  # btw test __eq__
         try:
             dummy = rn1 | "foobar"
             self.assertFalse("TypeError not raised")
@@ -203,7 +230,9 @@ class RangeSetNDTest(unittest.TestCase):
             rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"]])
             rn2 = RangeSetND([["1100-1200", "1"], ["10-49", "1,3"]])
             rn1 |= rn2
-            self.assertEqual(str(rn2), "12-13,1100-1200; 1\n10-11,14-49; 1,3\n12-13; 3\n")
+            self.assertEqual(
+                str(rn2), "12-13,1100-1200; 1\n10-11,14-49; 1,3\n12-13; 3\n"
+            )
             self.assertEqual(len(rn2), 181)
             rn2 = set([3, 5])
             self.assertRaises(TypeError, rn1.__ior__, rn2)
@@ -237,14 +266,13 @@ class RangeSetNDTest(unittest.TestCase):
         rnres2 = rn1 - rn2
         self.assertEqual(str(rnres2), "0-2; 1-3; 4-5\n")
         self.assertEqual(len(rnres2), 18)
-        self.assertEqual(rnres, rnres2) # btw test __eq__
+        self.assertEqual(rnres, rnres2)  # btw test __eq__
 
         try:
             dummy = rn1 - "foobar"
             self.assertFalse("TypeError not raised")
         except TypeError:
             pass
-
 
     def test_difference_update(self):
         rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"]])
@@ -260,20 +288,35 @@ class RangeSetNDTest(unittest.TestCase):
         self.assertEqual(str(rn1), "10; 9,11-13\n8; 12-15\n")
 
         rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"], ["8-9", "12-15"]])
-        rn2 = RangeSetND([["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]])
+        rn2 = RangeSetND(
+            [["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]]
+        )
         rn1.difference_update(rn2)
         self.assertEqual(len(rn1), 5)
         self.assertEqual(str(rn1), "8; 12-15\n10; 9\n")
 
-        rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"], ["8-9", "12-15"], ["10", "10-13"], ["10", "12-16"], ["9", "13-16"]])
-        rn2 = RangeSetND([["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]])
+        rn1 = RangeSetND(
+            [
+                ["10", "10-13"],
+                ["10", "9-12"],
+                ["8-9", "12-15"],
+                ["10", "10-13"],
+                ["10", "12-16"],
+                ["9", "13-16"],
+            ]
+        )
+        rn2 = RangeSetND(
+            [["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]]
+        )
         rn1.difference_update(rn2)
         self.assertEqual(len(rn1), 7)
         self.assertEqual(str(rn1), "8; 12-15\n10; 9,16\n9; 16\n")
 
         # strict mode
         rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"], ["8-9", "12-15"]])
-        rn2 = RangeSetND([["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]])
+        rn2 = RangeSetND(
+            [["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]]
+        )
         self.assertRaises(KeyError, rn1.difference_update, rn2, strict=True)
 
         if sys.version_info >= (2, 5, 0):
@@ -308,7 +351,7 @@ class RangeSetNDTest(unittest.TestCase):
         self.assertEqual(str(rn1), "8-9; 12-15\n10; 9-13\n")
         self.assertEqual(len(rn2), 5)
         self.assertEqual(str(rn2), "9; 12-15\n10; 10\n")
-        self.assertEqual(rni, rni2) # btw test __eq__
+        self.assertEqual(rni, rni2)  # btw test __eq__
         try:
             dummy = rn1 & "foobar"
             self.assertFalse("TypeError not raised")
@@ -336,25 +379,55 @@ class RangeSetNDTest(unittest.TestCase):
         self.assertEqual(str(rn1), "9; 12-15\n10; 10\n")
 
         rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"], ["8-9", "12-15"]])
-        rn2 = RangeSetND([["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]])
+        rn2 = RangeSetND(
+            [["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]]
+        )
         rn1.intersection_update(rn2)
         self.assertEqual(len(rn1), 8)
         self.assertEqual(str(rn1), "10; 10-13\n9; 12-15\n")
 
-        rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"], ["8-9", "12-15"], ["10", "10-13"], ["10", "12-16"], ["9", "13-16"]])
-        rn2 = RangeSetND([["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]])
+        rn1 = RangeSetND(
+            [
+                ["10", "10-13"],
+                ["10", "9-12"],
+                ["8-9", "12-15"],
+                ["10", "10-13"],
+                ["10", "12-16"],
+                ["9", "13-16"],
+            ]
+        )
+        rn2 = RangeSetND(
+            [["10", "10"], ["9", "12-15"], ["10-12", "11-15"], ["11", "14"]]
+        )
         rn1.intersection_update(rn2)
         self.assertEqual(len(rn1), 10)
         self.assertEqual(str(rn1), "10; 10-15\n9; 12-15\n")
 
-        rn1 = RangeSetND([["10", "10-13"], ["10", "9-12"], ["8-9", "12-15"], ["10", "10-13"], ["10", "12-16"], ["9", "13-16"]])
-        rn2 = RangeSetND([["10", "10"], ["9", "12-16"], ["10-12", "11-15"], ["11", "14"], ["8", "10-20"]])
+        rn1 = RangeSetND(
+            [
+                ["10", "10-13"],
+                ["10", "9-12"],
+                ["8-9", "12-15"],
+                ["10", "10-13"],
+                ["10", "12-16"],
+                ["9", "13-16"],
+            ]
+        )
+        rn2 = RangeSetND(
+            [
+                ["10", "10"],
+                ["9", "12-16"],
+                ["10-12", "11-15"],
+                ["11", "14"],
+                ["8", "10-20"],
+            ]
+        )
         rn1.intersection_update(rn2)
         self.assertEqual(len(rn1), 15)
         # no pre-fold (self._veclist)
         self.assertEqual(str(rn1), "10; 10-15\n9; 12-16\n8; 12-15\n")
         # pre-fold (self.veclist)
-        #self.assertEqual(str(rn1), "8-9; 12-15\n10; 10-15\n9; 16\n")
+        # self.assertEqual(str(rn1), "8-9; 12-15\n10; 10-15\n9; 16\n")
 
         # binary error
         if sys.version_info >= (2, 5, 0):
@@ -394,26 +467,26 @@ class RangeSetNDTest(unittest.TestCase):
     def test_getitem(self):
         rn1 = RangeSetND([["10", "10-13"], ["0-3", "1-2"]])
         self.assertEqual(len(rn1), 12)
-        self.assertEqual(rn1[0], ('0', '1'))
-        self.assertEqual(rn1[1], ('0', '2'))
-        self.assertEqual(rn1[2], ('1', '1'))
-        self.assertEqual(rn1[3], ('1', '2'))
-        self.assertEqual(rn1[4], ('2', '1'))
-        self.assertEqual(rn1[5], ('2', '2'))
-        self.assertEqual(rn1[6], ('3', '1'))
-        self.assertEqual(rn1[7], ('3', '2'))
-        self.assertEqual(rn1[8], ('10', '10'))
-        self.assertEqual(rn1[9], ('10', '11'))
-        self.assertEqual(rn1[10], ('10', '12'))
-        self.assertEqual(rn1[11], ('10', '13'))
+        self.assertEqual(rn1[0], ("0", "1"))
+        self.assertEqual(rn1[1], ("0", "2"))
+        self.assertEqual(rn1[2], ("1", "1"))
+        self.assertEqual(rn1[3], ("1", "2"))
+        self.assertEqual(rn1[4], ("2", "1"))
+        self.assertEqual(rn1[5], ("2", "2"))
+        self.assertEqual(rn1[6], ("3", "1"))
+        self.assertEqual(rn1[7], ("3", "2"))
+        self.assertEqual(rn1[8], ("10", "10"))
+        self.assertEqual(rn1[9], ("10", "11"))
+        self.assertEqual(rn1[10], ("10", "12"))
+        self.assertEqual(rn1[11], ("10", "13"))
         self.assertRaises(IndexError, rn1.__getitem__, 12)
         # negative indices
-        self.assertEqual(rn1[-1], ('10', '13'))
-        self.assertEqual(rn1[-2], ('10', '12'))
-        self.assertEqual(rn1[-3], ('10', '11'))
-        self.assertEqual(rn1[-4], ('10', '10'))
-        self.assertEqual(rn1[-5], ('3', '2'))
-        self.assertEqual(rn1[-12], ('0', '1'))
+        self.assertEqual(rn1[-1], ("10", "13"))
+        self.assertEqual(rn1[-2], ("10", "12"))
+        self.assertEqual(rn1[-3], ("10", "11"))
+        self.assertEqual(rn1[-4], ("10", "10"))
+        self.assertEqual(rn1[-5], ("3", "2"))
+        self.assertEqual(rn1[-12], ("0", "1"))
         self.assertRaises(IndexError, rn1.__getitem__, -13)
         self.assertRaises(TypeError, rn1.__getitem__, "foo")
 
@@ -443,50 +516,93 @@ class RangeSetNDTest(unittest.TestCase):
         self.assertEqual([], [str(ns) for ns in rn0.contiguous()])
         rn1 = RangeSetND([["10", "10-13,15"], ["0-3,5-6", "1-2"]])
         self.assertEqual(str(rn1), "0-3,5-6; 1-2\n10; 10-13,15\n")
-        self.assertEqual(['0-3; 1-2\n', '5-6; 1-2\n', '10; 10-13\n', '10; 15\n'], [str(ns) for ns in rn1.contiguous()])
+        self.assertEqual(
+            ["0-3; 1-2\n", "5-6; 1-2\n", "10; 10-13\n", "10; 15\n"],
+            [str(ns) for ns in rn1.contiguous()],
+        )
         self.assertEqual(str(rn1), "0-3,5-6; 1-2\n10; 10-13,15\n")
 
     def test_iter(self):
-        rn0 = RangeSetND([['1-2', '3'], ['1-2', '4'], ['2-6', '6-9,11']])
+        rn0 = RangeSetND([["1-2", "3"], ["1-2", "4"], ["2-6", "6-9,11"]])
         self.assertEqual(len([r for r in rn0]), len(rn0))
         # at this time, iter nD is not sorted
-        self.assertEqual([('3', '6'), ('3', '7'), ('3', '8'), ('3', '9'), ('3', '11'), ('4', '6'),
-                          ('4', '7'), ('4', '8'), ('4', '9'), ('4', '11'), ('5', '6'), ('5', '7'),
-                          ('5', '8'), ('5', '9'), ('5', '11'), ('6', '6'), ('6', '7'), ('6', '8'),
-                          ('6', '9'), ('6', '11'), ('2', '3'), ('2', '4'), ('2', '6'), ('2', '7'),
-                          ('2', '8'), ('2', '9'), ('2', '11'), ('1', '3'), ('1', '4')],
-                        [r for r in rn0])
+        self.assertEqual(
+            [
+                ("3", "6"),
+                ("3", "7"),
+                ("3", "8"),
+                ("3", "9"),
+                ("3", "11"),
+                ("4", "6"),
+                ("4", "7"),
+                ("4", "8"),
+                ("4", "9"),
+                ("4", "11"),
+                ("5", "6"),
+                ("5", "7"),
+                ("5", "8"),
+                ("5", "9"),
+                ("5", "11"),
+                ("6", "6"),
+                ("6", "7"),
+                ("6", "8"),
+                ("6", "9"),
+                ("6", "11"),
+                ("2", "3"),
+                ("2", "4"),
+                ("2", "6"),
+                ("2", "7"),
+                ("2", "8"),
+                ("2", "9"),
+                ("2", "11"),
+                ("1", "3"),
+                ("1", "4"),
+            ],
+            [r for r in rn0],
+        )
 
     def test_pads(self):
         rn0 = RangeSetND()
         self.assertEqual(str(rn0), "")
         self.assertEqual(len(rn0), 0)
         self.assertEqual(rn0.pads(), ())
-        rn1 = RangeSetND([['01-02', '003'], ['01-02', '004'], ['02-06', '006-009,411']])
-        self.assertEqual(str(rn1), "03-06; 006-009,411\n02; 003-004,006-009,411\n01; 003-004\n")
+        rn1 = RangeSetND([["01-02", "003"], ["01-02", "004"], ["02-06", "006-009,411"]])
+        self.assertEqual(
+            str(rn1), "03-06; 006-009,411\n02; 003-004,006-009,411\n01; 003-004\n"
+        )
         self.assertEqual(len(rn1), 29)
         self.assertEqual(rn1.pads(), (2, 3))
         # Note: mixed lengths zero-padding supported in ClusterShell v1.9
-        rn1 = RangeSetND([['01-02', '003'], ['01-02', '0101'], ['02-06', '006-009,411']])
+        rn1 = RangeSetND(
+            [["01-02", "003"], ["01-02", "0101"], ["02-06", "006-009,411"]]
+        )
         # before v1.9: 0101 padding was changed to 101
-        self.assertEqual(str(rn1), '03-06; 006-009,411\n02; 003,006-009,411,0101\n01; 003,0101\n')
+        self.assertEqual(
+            str(rn1), "03-06; 006-009,411\n02; 003,006-009,411,0101\n01; 003,0101\n"
+        )
         self.assertEqual(len(rn1), 29)
         self.assertEqual(rn1.pads(), (2, 4))
-        rn1 = RangeSetND([['01-02', '0003'], ['01-02', '004'], ['02-06', '006-009,411']])
+        rn1 = RangeSetND(
+            [["01-02", "0003"], ["01-02", "004"], ["02-06", "006-009,411"]]
+        )
         # before v1.9: 004 padding was wrongly changed to 0004
-        self.assertEqual(str(rn1), '03-06; 006-009,411\n02; 004,006-009,411,0003\n01; 004,0003\n')
+        self.assertEqual(
+            str(rn1), "03-06; 006-009,411\n02; 004,006-009,411,0003\n01; 004,0003\n"
+        )
         self.assertEqual(len(rn1), 29)
-        self.assertEqual(rn1.pads(), (2, 4)) # pads() returns max padding length by axis
+        self.assertEqual(
+            rn1.pads(), (2, 4)
+        )  # pads() returns max padding length by axis
 
     def test_mutability_1(self):
         rs0 = RangeSet("2-5")
         rs1 = RangeSet("0-1")
-        rn0 = RangeSetND([[rs0, rs1]]) #, copy_rangeset=False)
+        rn0 = RangeSetND([[rs0, rs1]])  # , copy_rangeset=False)
         self.assertEqual(str(rn0), "2-5; 0-1\n")
 
         rs2 = RangeSet("6-7")
         rs3 = RangeSet("2-3")
-        rn1 = RangeSetND([[rs2, rs3]]) #, copy_rangeset=False)
+        rn1 = RangeSetND([[rs2, rs3]])  # , copy_rangeset=False)
         rn0.update(rn1)
         self.assertEqual(str(rn0), "2-5; 0-1\n6-7; 2-3\n")
 
@@ -512,7 +628,7 @@ class RangeSetNDTest(unittest.TestCase):
     def test_mutability_2(self):
         rs0 = RangeSet("2-5")
         rs1 = RangeSet("0-1")
-        rn0 = RangeSetND([[rs0, rs1]]) #, copy_rangeset=False)
+        rn0 = RangeSetND([[rs0, rs1]])  # , copy_rangeset=False)
         self.assertEqual(str(rn0), "2-5; 0-1\n")
 
         rs2 = RangeSet("6-7")

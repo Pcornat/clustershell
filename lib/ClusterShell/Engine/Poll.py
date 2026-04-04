@@ -29,10 +29,14 @@ import logging
 import select
 import time
 
-from ClusterShell.Engine.Engine import Engine, E_READ, E_WRITE
-from ClusterShell.Engine.Engine import EngineException
-from ClusterShell.Engine.Engine import EngineNotSupportedError
-from ClusterShell.Engine.Engine import EngineTimeoutException
+from ClusterShell.Engine.Engine import (
+    E_READ,
+    E_WRITE,
+    Engine,
+    EngineException,
+    EngineNotSupportedError,
+    EngineTimeoutException,
+)
 from ClusterShell.Worker.EngineClient import EngineClientEOF
 
 
@@ -78,8 +82,7 @@ class EnginePoll(Engine):
         and set_events().  For the poll() engine, it reg/unreg or modifies the
         event mask associated to a file descriptor.
         """
-        self._debug("MODSPEC fd=%d event=%x setvalue=%d" % (fd, event,
-                                                            setvalue))
+        self._debug("MODSPEC fd=%d event=%x setvalue=%d" % (fd, event, setvalue))
         if setvalue:
             self._register_specific(fd, event)
         else:
@@ -96,9 +99,10 @@ class EnginePoll(Engine):
 
         # run main event loop...
         while self.evlooprefcnt > 0:
-            self._debug("LOOP evlooprefcnt=%d (reg_clifds=%s) (timers=%d)" \
-                % (self.evlooprefcnt, self.reg_clifds.keys(), \
-                   len(self.timerq)))
+            self._debug(
+                "LOOP evlooprefcnt=%d (reg_clifds=%s) (timers=%d)"
+                % (self.evlooprefcnt, self.reg_clifds.keys(), len(self.timerq))
+            )
             try:
                 timeo = self.timerq.nextfire_delay()
                 if timeout > 0 and timeo >= timeout:
@@ -126,7 +130,6 @@ class EnginePoll(Engine):
                 raise
 
             for fd, event in evlist:
-
                 if event & select.POLLNVAL:
                     raise EngineException("Caught POLLNVAL on fd %d" % fd)
 
@@ -145,8 +148,9 @@ class EnginePoll(Engine):
                 if event & select.POLLERR:
                     self._debug("POLLERR %s" % client)
                     assert fdev & E_WRITE
-                    self._debug("POLLERR: remove_stream sname %s fdev 0x%x"
-                                % (sname, fdev))
+                    self._debug(
+                        "POLLERR: remove_stream sname %s fdev 0x%x" % (sname, fdev)
+                    )
                     self.remove_stream(client, stream)
                     self._current_stream = None
                     continue
@@ -167,16 +171,20 @@ class EnginePoll(Engine):
                 # or check for end of stream (do not handle both at the same
                 # time because handle_read() may perform a partial read)
                 elif event & select.POLLHUP:
-                    self._debug("POLLHUP fd=%d %s (%s)" %
-                                (fd, client.__class__.__name__, client.streams))
+                    self._debug(
+                        "POLLHUP fd=%d %s (%s)"
+                        % (fd, client.__class__.__name__, client.streams)
+                    )
                     self.remove_stream(client, stream)
                     self._current_stream = None
                     continue
 
                 # check for writing
                 if event & select.POLLOUT:
-                    self._debug("POLLOUT fd=%d %s (%s)" %
-                                (fd, client.__class__.__name__, client.streams))
+                    self._debug(
+                        "POLLOUT fd=%d %s (%s)"
+                        % (fd, client.__class__.__name__, client.streams)
+                    )
                     assert fdev == E_WRITE
                     assert stream.events & fdev
                     self.modify(client, sname, 0, fdev)
@@ -195,6 +203,7 @@ class EnginePoll(Engine):
             # process clients timeout
             self.fire_timers()
 
-        self._debug("LOOP EXIT evlooprefcnt=%d (reg_clifds=%s) (timers=%d)" % \
-                (self.evlooprefcnt, self.reg_clifds, len(self.timerq)))
-
+        self._debug(
+            "LOOP EXIT evlooprefcnt=%d (reg_clifds=%s) (timers=%d)"
+            % (self.evlooprefcnt, self.reg_clifds, len(self.timerq))
+        )

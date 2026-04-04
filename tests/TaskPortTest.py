@@ -7,12 +7,11 @@ import threading
 import time
 import unittest
 
-from ClusterShell.Task import *
 from ClusterShell.Event import EventHandler
+from ClusterShell.Task import *
 
 
 class TaskPortTest(unittest.TestCase):
-
     def tearDown(self):
         task_cleanup()
 
@@ -52,7 +51,7 @@ class TaskPortTest(unittest.TestCase):
             def ev_msg(self, port, msg):
                 pass
 
-        task = Task() # new thread
+        task = Task()  # new thread
         port = task.port(handler=PortHandler(), autoclose=True)
         task.resume()
         task.remove_port(port)
@@ -66,7 +65,7 @@ class TaskPortTest(unittest.TestCase):
         # thread will wait a bit and send a port message
         def test_thread_start(port, test):
             time.sleep(0.5)
-            test.port_msg_result = port.msg('foobar')
+            test.port_msg_result = port.msg("foobar")
 
         class TestHandler(EventHandler):
             pass
@@ -79,6 +78,6 @@ class TaskPortTest(unittest.TestCase):
         thread.daemon = True
         thread.start()
         task.resume()
-        task.abort(kill=True) # will remove_port()
+        task.abort(kill=True)  # will remove_port()
         thread.join()
-        self.assertEqual(self.port_msg_result, False) # test vs. None and True
+        self.assertEqual(self.port_msg_result, False)  # test vs. None and True

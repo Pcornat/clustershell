@@ -31,9 +31,9 @@ except ImportError:
 
 import warnings
 
-from ClusterShell.Worker.EngineClient import EngineClient
+from ClusterShell.Engine.Engine import FANOUT_DEFAULT, FANOUT_UNLIMITED
 from ClusterShell.NodeSet import NodeSet
-from ClusterShell.Engine.Engine import FANOUT_UNLIMITED, FANOUT_DEFAULT
+from ClusterShell.Worker.EngineClient import EngineClient
 
 
 def _eh_sigspec_invoke_compat(method, argc_legacy, *args):
@@ -46,19 +46,23 @@ def _eh_sigspec_invoke_compat(method, argc_legacy, *args):
     argc_actual = len(getfullargspec(method)[0])
     if argc_actual == argc_legacy:
         # Use legacy signature (1.x) deprecated as of 1.9
-        warnings.warn("%s should use new %s() signature" % (method.__self__,
-                                                            method.__name__),
-                      DeprecationWarning)
-        return method(*args[0:argc_legacy - 1])
+        warnings.warn(
+            "%s should use new %s() signature" % (method.__self__, method.__name__),
+            DeprecationWarning,
+        )
+        return method(*args[0 : argc_legacy - 1])
     else:
         # Assume new signature (2.x)
         return method(*args)
 
+
 def _eh_sigspec_ev_read_17(ev_read):
     """Helper function to check whether ev_read has the old 1.7 signature."""
     if len(getfullargspec(ev_read)[0]) == 2:
-        warnings.warn("%s should use new ev_read() signature" % \
-                      ev_read.__self__, DeprecationWarning)
+        warnings.warn(
+            "%s should use new ev_read() signature" % ev_read.__self__,
+            DeprecationWarning,
+        )
         return True
     return False
 
@@ -66,12 +70,15 @@ def _eh_sigspec_ev_read_17(ev_read):
 class WorkerException(Exception):
     """Generic worker exception."""
 
+
 class WorkerError(WorkerException):
     """Generic worker error."""
+
 
 # DEPRECATED: WorkerBadArgumentError exception is deprecated as of 1.4,
 # use ValueError instead.
 WorkerBadArgumentError = ValueError
+
 
 class Worker(object):
     """
@@ -101,14 +108,14 @@ class Worker(object):
 
     # The following common stream names are recognized by the Task class.
     # They can be changed per Worker, thus avoiding any Task buffering.
-    SNAME_STDIN  = 'stdin'   #: stream name usually used for stdin
-    SNAME_STDOUT = 'stdout'  #: stream name usually used for stdout
-    SNAME_STDERR = 'stderr'  #: stream name usually used for stderr
+    SNAME_STDIN = "stdin"  #: stream name usually used for stdin
+    SNAME_STDOUT = "stdout"  #: stream name usually used for stdout
+    SNAME_STDERR = "stderr"  #: stream name usually used for stderr
 
     def __init__(self, handler):
         """Initializer. Should be called from derived classes."""
         # Associated EventHandler object
-        self.eh = handler           #: associated :class:`.EventHandler`
+        self.eh = handler  #: associated :class:`.EventHandler`
 
         # Per Worker fanout value (positive integer).
         # Default is FANOUT_DEFAULT to use the fanout set at the Task level.
@@ -122,8 +129,8 @@ class Worker(object):
         self._update_task_rc = True
 
         # Parent task (once bound)
-        self.task = None            #: worker's task when scheduled or None
-        self.started = False        #: set to True when worker has started
+        self.task = None  #: worker's task when scheduled or None
+        self.started = False  #: set to True when worker has started
         self.metaworker = None
         self.metarefcnt = 0
 
@@ -200,7 +207,7 @@ class Worker(object):
         self._task_bound_check()
         return self.task._num_timeout_by_worker(self) > 0
 
-    def read(self, node=None, sname='stdout'):
+    def read(self, node=None, sname="stdout"):
         """Read worker stream buffer.
 
         Return stream read buffer of current worker.
@@ -246,7 +253,7 @@ class DistantWorker(Worker):
         """Message received from node, update last* stuffs."""
         # Maxoptimize this method as it might be called very often.
         task = self.task
-        assert not isinstance(node, NodeSet) # for testing
+        assert not isinstance(node, NodeSet)  # for testing
         # update task msgtree
         task._msg_add(self, node, sname, msg)
 
@@ -260,7 +267,7 @@ class DistantWorker(Worker):
             self.current_errmsg = msg
             if self.eh is not None:
                 # call old ev_error for compat (default is no-op)
-                if hasattr(self.eh, 'ev_error'):  # missing in 1.8.0!
+                if hasattr(self.eh, "ev_error"):  # missing in 1.8.0!
                     self.eh.ev_error(self)
                 # /!\ NOT elif
                 if not _eh_sigspec_ev_read_17(self.eh.ev_read):
@@ -321,7 +328,8 @@ class DistantWorker(Worker):
         """
         self._task_bound_check()
         for msg, keys in self.task._call_tree_matcher(
-                self.task._msgtree(self.SNAME_STDOUT).walk, match_keys, self):
+            self.task._msgtree(self.SNAME_STDOUT).walk, match_keys, self
+        ):
             yield msg, NodeSet.fromlist(keys)
 
     def iter_errors(self, match_keys=None):
@@ -332,7 +340,8 @@ class DistantWorker(Worker):
         """
         self._task_bound_check()
         for msg, keys in self.task._call_tree_matcher(
-                self.task._msgtree(self.SNAME_STDERR).walk, match_keys, self):
+            self.task._msgtree(self.SNAME_STDERR).walk, match_keys, self
+        ):
             yield msg, NodeSet.fromlist(keys)
 
     def iter_node_buffers(self, match_keys=None):
@@ -341,7 +350,8 @@ class DistantWorker(Worker):
         """
         self._task_bound_check()
         return self.task._call_tree_matcher(
-            self.task._msgtree(self.SNAME_STDOUT).items, match_keys, self)
+            self.task._msgtree(self.SNAME_STDOUT).items, match_keys, self
+        )
 
     def iter_node_errors(self, match_keys=None):
         """
@@ -349,7 +359,8 @@ class DistantWorker(Worker):
         """
         self._task_bound_check()
         return self.task._call_tree_matcher(
-            self.task._msgtree(self.SNAME_STDERR).items, match_keys, self)
+            self.task._msgtree(self.SNAME_STDERR).items, match_keys, self
+        )
 
     def iter_retcodes(self, match_keys=None):
         """
@@ -381,6 +392,7 @@ class DistantWorker(Worker):
         """
         self._task_bound_check()
         return self.task._iter_keys_timeout_by_worker(self)
+
 
 class StreamClient(EngineClient):
     """StreamWorker's default EngineClient.
@@ -455,6 +467,7 @@ class StreamClient(EngineClient):
         for writer in self.streams.writers():
             self._set_write_eof(writer.name)
 
+
 class StreamWorker(Worker):
     """StreamWorker base class [v1.7+]
 
@@ -464,8 +477,8 @@ class StreamWorker(Worker):
     should be pre-bound to "streams", ie. file(s) or file descriptor(s),
     using the two following methods:
 
-        >>> worker.set_reader('stream1', fd1)
-        >>> worker.set_writer('stream2', fd2)
+        >>> worker.set_reader("stream1", fd1)
+        >>> worker.set_writer("stream2", fd2)
 
     Like other Workers, the StreamWorker instance should be associated
     with a Task using task.schedule(worker). When the task engine is
@@ -482,10 +495,17 @@ class StreamWorker(Worker):
     worker.write(data, 'stream2'), to write to the stream.
     """
 
-    def __init__(self, handler, key=None, stderr=False, timeout=-1,
-                 autoclose=False, client_class=StreamClient):
+    def __init__(
+        self,
+        handler,
+        key=None,
+        stderr=False,
+        timeout=-1,
+        autoclose=False,
+        client_class=StreamClient,
+    ):
         Worker.__init__(self, handler)
-        if key is None: # allow key=0
+        if key is None:  # allow key=0
             key = self
         self.clients = [client_class(self, key, stderr, timeout, autoclose)]
 
@@ -542,11 +562,11 @@ class StreamWorker(Worker):
         self.current_sname = sname
 
         # generate event
-        if sname == 'stderr':
+        if sname == "stderr":
             self.current_errmsg = msg
             if self.eh is not None:
                 # call old ev_error for compat (default is no-op)
-                if hasattr(self.eh, 'ev_error'):  # missing in 1.8.0!
+                if hasattr(self.eh, "ev_error"):  # missing in 1.8.0!
                     self.eh.ev_error(self)
                 # /!\ NOT elif
                 if not _eh_sigspec_ev_read_17(self.eh.ev_read):
@@ -568,9 +588,11 @@ class StreamWorker(Worker):
 
         # trigger timeout event (deprecated in 1.8+)
         # also use hasattr check because ev_timeout was missing in 1.8.0
-        if self.eh and hasattr(self.eh, 'ev_timeout'):
-            warnings.warn("%s should use new ev_close() instead of " \
-                          "ev_timeout()" % self.eh, DeprecationWarning)
+        if self.eh and hasattr(self.eh, "ev_timeout"):
+            warnings.warn(
+                "%s should use new ev_close() instead of ev_timeout()" % self.eh,
+                DeprecationWarning,
+            )
             self.eh.ev_timeout(self)
 
     def abort(self):
@@ -580,7 +602,7 @@ class StreamWorker(Worker):
         """
         self.clients[0].abort()
 
-    def read(self, node=None, sname='stdout'):
+    def read(self, node=None, sname="stdout"):
         """Read worker stream buffer.
 
         Return stream read buffer of current worker.
@@ -610,6 +632,7 @@ class StreamWorker(Worker):
         """
         self.clients[0].set_write_eof(sname)
 
+
 class WorkerSimple(StreamWorker):
     """WorkerSimple base class [DEPRECATED]
 
@@ -619,36 +642,47 @@ class WorkerSimple(StreamWorker):
     [DEPRECATED] use StreamWorker.
     """
 
-    def __init__(self, file_reader, file_writer, file_error, key, handler,
-                 stderr=False, timeout=-1, autoclose=False, closefd=True,
-                 client_class=StreamClient):
+    def __init__(
+        self,
+        file_reader,
+        file_writer,
+        file_error,
+        key,
+        handler,
+        stderr=False,
+        timeout=-1,
+        autoclose=False,
+        closefd=True,
+        client_class=StreamClient,
+    ):
         """Initialize WorkerSimple worker."""
-        StreamWorker.__init__(self, handler, key, stderr, timeout, autoclose,
-                              client_class=client_class)
+        StreamWorker.__init__(
+            self, handler, key, stderr, timeout, autoclose, client_class=client_class
+        )
         if file_reader:
-            self.set_reader('stdout', file_reader, closefd=closefd)
+            self.set_reader("stdout", file_reader, closefd=closefd)
         if file_error:
-            self.set_reader('stderr', file_error, closefd=closefd)
+            self.set_reader("stderr", file_error, closefd=closefd)
         if file_writer:
-            self.set_writer('stdin', file_writer, closefd=closefd)
+            self.set_writer("stdin", file_writer, closefd=closefd)
         # keep reference of provided file objects during worker lifetime
         self._filerefs = (file_reader, file_writer, file_error)
 
     def error_fileno(self):
         """Return the standard error reader file descriptor (integer)."""
-        return self.clients[0].streams['stderr'].fd
+        return self.clients[0].streams["stderr"].fd
 
     def reader_fileno(self):
         """Return the reader file descriptor (integer)."""
-        return self.clients[0].streams['stdout'].fd
+        return self.clients[0].streams["stdout"].fd
 
     def writer_fileno(self):
         """Return the writer file descriptor as an integer."""
-        return self.clients[0].streams['stdin'].fd
+        return self.clients[0].streams["stdin"].fd
 
     def error(self):
         """Read worker error buffer."""
-        return self.read(sname='stderr')
+        return self.read(sname="stderr")
 
     def _on_start(self, key):
         """Called on command start."""

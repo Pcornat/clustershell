@@ -30,33 +30,39 @@ from functools import reduce
 from itertools import product
 from operator import mul
 
-__all__ = ['RangeSetException',
-           'RangeSetParseError',
-           'RangeSetPaddingError',
-           'RangeSet',
-           'RangeSetND',
-           'AUTOSTEP_DISABLED']
+__all__ = [
+    "RangeSetException",
+    "RangeSetParseError",
+    "RangeSetPaddingError",
+    "RangeSet",
+    "RangeSetND",
+    "AUTOSTEP_DISABLED",
+]
 
 # Special constant used to force turn off autostep feature.
 # Note: +inf is 1E400, but a bug in python 2.4 makes it impossible to be
 # pickled, so we use less. Later, we could consider sys.maxint here.
-AUTOSTEP_DISABLED = 1E100
+AUTOSTEP_DISABLED = 1e100
 
 
 class RangeSetException(Exception):
     """Base RangeSet exception class."""
 
+
 class RangeSetParseError(RangeSetException):
     """Raised when RangeSet parsing cannot be done properly."""
+
     def __init__(self, part, msg):
         if part:
-            msg = "%s : \"%s\"" % (msg, part)
+            msg = '%s : "%s"' % (msg, part)
         RangeSetException.__init__(self, msg)
         # faulty subrange; this allows you to target the error
         self.part = part
 
+
 class RangeSetPaddingError(RangeSetParseError):
     """Raised when a fatal padding incoherence occurs"""
+
     def __init__(self, part, msg):
         RangeSetParseError.__init__(self, part, "padding mismatch (%s)" % msg)
 
@@ -70,10 +76,10 @@ class RangeSet(set):
 
     RangeSet basic constructors:
 
-       >>> rset = RangeSet()            # empty RangeSet
-       >>> rset = RangeSet("5,10-42")   # contains '5', '10' to '42'
-       >>> rset = RangeSet("0-10/2")    # contains '0', '2', '4', '6', '8', '10'
-       >>> rset = RangeSet("00-10/2")   # contains '00', '02', '04', '06', '08', '10'
+       >>> rset = RangeSet()  # empty RangeSet
+       >>> rset = RangeSet("5,10-42")  # contains '5', '10' to '42'
+       >>> rset = RangeSet("0-10/2")  # contains '0', '2', '4', '6', '8', '10'
+       >>> rset = RangeSet("00-10/2")  # contains '00', '02', '04', '06', '08', '10'
 
     Also any iterable of integers can be specified as first argument:
 
@@ -101,7 +107,8 @@ class RangeSet(set):
     :meth:`RangeSet.symmetric_difference_update` which conform to the Python
     Set API.
     """
-    _VERSION = 4    # serial version number
+
+    _VERSION = 4  # serial version number
 
     def __init__(self, pattern=None, autostep=None):
         """Initialize RangeSet object.
@@ -118,7 +125,7 @@ class RangeSet(set):
             self._autostep = pattern._autostep
         else:
             self._autostep = None
-        self.autostep = autostep #: autostep threshold public instance attribute
+        self.autostep = autostep  #: autostep threshold public instance attribute
 
         if isinstance(pattern, str):
             self._parse(pattern)
@@ -126,42 +133,39 @@ class RangeSet(set):
     def _parse(self, pattern):
         """Parse string of comma-separated x-y/step -like ranges"""
         # Comma separated ranges
-        for subrange in pattern.split(','):
+        for subrange in pattern.split(","):
             subrange = subrange.strip()  # ignore whitespaces
-            if subrange.find('/') < 0:
+            if subrange.find("/") < 0:
                 baserange, step = subrange, 1
             else:
-                baserange, step = subrange.split('/', 1)
+                baserange, step = subrange.split("/", 1)
 
             try:
                 step = int(step)
             except ValueError:
-                raise RangeSetParseError(subrange,
-                                         "cannot convert string to integer")
+                raise RangeSetParseError(subrange, "cannot convert string to integer")
 
             begin_sign = end_sign = 1  # sign "scale factor"
 
-            if baserange.find('-') < 0:
+            if baserange.find("-") < 0:
                 if step != 1:
                     raise RangeSetParseError(subrange, "invalid step usage")
                 begin = end = baserange
             else:
                 # ignore whitespaces in a range
                 try:
-                    begin, end = (n.strip() for n in baserange.split('-'))
+                    begin, end = (n.strip() for n in baserange.split("-"))
                     if not begin:  # single negative number "-5"
                         begin = end
                         begin_sign = end_sign = -1
                 except ValueError:
                     try:
                         # -0-3
-                        _, begin, end = (n.strip()
-                                         for n in baserange.split('-'))
+                        _, begin, end = (n.strip() for n in baserange.split("-"))
                         begin_sign = -1
                     except ValueError:
                         # -8--4
-                        _, begin, _, end = (n.strip()
-                                            for n in baserange.split('-'))
+                        _, begin, _, end = (n.strip() for n in baserange.split("-"))
                         begin_sign = end_sign = -1
 
             # compute padding and return node range info tuple
@@ -184,8 +188,7 @@ class RangeSet(set):
                 if len(end) - len(ends) > 0:
                     endpad = len(end)
                 if (pad > 0 or endpad > 0) and len(begin) != len(end):
-                    raise RangeSetParseError(subrange,
-                                             "padding length mismatch")
+                    raise RangeSetParseError(subrange, "padding length mismatch")
 
                 stop = int(ends)
             except ValueError:
@@ -239,7 +242,7 @@ class RangeSet(set):
         for si in self:
             idx, digitlen = int(si), len(si)
             # explicitly padded?
-            if digitlen > 1 and si[0] == '0':
+            if digitlen > 1 and si[0] == "0":
                 # result always grows bigger as we iterate over a sorted set
                 # with largest padded values at the end
                 result = digitlen
@@ -284,9 +287,10 @@ class RangeSet(set):
     def _sorted(self):
         """Get sorted list from inner set."""
         # For mixed padding support, sort by both string length and index
-        return sorted(set.__iter__(self),
-                      key=lambda x: (-len(x), int(x)) if x.startswith('-') \
-                                    else (len(x), x))
+        return sorted(
+            set.__iter__(self),
+            key=lambda x: (-len(x), int(x)) if x.startswith("-") else (len(x), x),
+        )
 
     def __iter__(self):
         """Iterate over each element in RangeSet, currently as integers, with
@@ -313,37 +317,54 @@ class RangeSet(set):
 
     def __reduce__(self):
         """Return state information for pickling."""
-        return self.__class__, (str(self),), \
-            { 'padding': self.padding, \
-              '_autostep': self._autostep, \
-              '_version' : RangeSet._VERSION }
+        return (
+            self.__class__,
+            (str(self),),
+            {
+                "padding": self.padding,
+                "_autostep": self._autostep,
+                "_version": RangeSet._VERSION,
+            },
+        )
 
     def __setstate__(self, dic):
         """called upon unpickling"""
         self.__dict__.update(dic)
-        if getattr(self, '_version', 0) < RangeSet._VERSION:
+        if getattr(self, "_version", 0) < RangeSet._VERSION:
             # unpickle from old version?
-            if getattr(self, '_version', 0) <= 1:
+            if getattr(self, "_version", 0) <= 1:
                 # v1 (no object versioning) - CSv1.3
-                setattr(self, '_ranges', [(slice(start, stop + 1, step), pad) \
-                    for start, stop, step, pad in getattr(self, '_ranges')])
-            elif hasattr(self, '_ranges'):
+                setattr(
+                    self,
+                    "_ranges",
+                    [
+                        (slice(start, stop + 1, step), pad)
+                        for start, stop, step, pad in getattr(self, "_ranges")
+                    ],
+                )
+            elif hasattr(self, "_ranges"):
                 # v2 - CSv1.4-1.5
-                self_ranges = getattr(self, '_ranges')
+                self_ranges = getattr(self, "_ranges")
                 if self_ranges and not isinstance(self_ranges[0][0], slice):
                     # workaround for object pickled from Python < 2.5
-                    setattr(self, '_ranges', [(slice(start, stop, step), pad) \
-                        for (start, stop, step), pad in self_ranges])
+                    setattr(
+                        self,
+                        "_ranges",
+                        [
+                            (slice(start, stop, step), pad)
+                            for (start, stop, step), pad in self_ranges
+                        ],
+                    )
 
-            if hasattr(self, '_ranges'):
+            if hasattr(self, "_ranges"):
                 # convert to v3
-                for sli, pad in getattr(self, '_ranges'):
+                for sli, pad in getattr(self, "_ranges"):
                     self.add_range(sli.start, sli.stop, sli.step, pad)
-                delattr(self, '_ranges')
-                delattr(self, '_length')
+                delattr(self, "_ranges")
+                delattr(self, "_length")
 
-            if getattr(self, '_version', 0) == 3:  # 1.6 - 1.8
-                padding = getattr(self, 'padding', 0)
+            if getattr(self, "_version", 0) == 3:  # 1.6 - 1.8
+                padding = getattr(self, "padding", 0)
                 # convert integer set to string set
                 cpyset = set(self)
                 self.clear()
@@ -360,12 +381,11 @@ class RangeSet(set):
                 if sli.step == 1:
                     yield "%0*d-%0*d" % (pad, sli.start, pad, sli.stop - 1)
                 else:
-                    yield "%0*d-%0*d/%d" % (pad, sli.start, pad, sli.stop - 1, \
-                                            sli.step)
+                    yield "%0*d-%0*d/%d" % (pad, sli.start, pad, sli.stop - 1, sli.step)
 
     def __str__(self):
         """Get comma-separated range-based string (x-y/step format)."""
-        return ','.join(self._strslices())
+        return ",".join(self._strslices())
 
     # __repr__ is the same as __str__ as it is a valid expression that
     # could be used to recreate a RangeSet with the same value
@@ -386,12 +406,11 @@ class RangeSet(set):
         last_idx = None
 
         for si in self._sorted():
-
             # numerical index and length of digits
             idx, digitlen = int(si), len(si)
 
             # is current digit zero-padded?
-            padded = (digitlen > 1 and si[0] == '0')
+            padded = digitlen > 1 and si[0] == "0"
 
             if cur_start is not None:
                 padding_mismatch = False
@@ -422,14 +441,19 @@ class RangeSet(set):
                 if padding_mismatch or step_mismatch:
                     if cur_step is not None:
                         # stepped is True when autostep setting does apply
-                        stepped = (cur_step == 1) or (last_idx - cur_start >= autostep * cur_step)
+                        stepped = (cur_step == 1) or (
+                            last_idx - cur_start >= autostep * cur_step
+                        )
                         step = cur_step
                     else:
                         stepped = True
                         step = 1
 
                     if stepped:
-                        yield slice(cur_start, last_idx + 1, step), cur_pad if cur_padded else 0
+                        yield (
+                            slice(cur_start, last_idx + 1, step),
+                            cur_pad if cur_padded else 0,
+                        )
                         cur_start = idx
                         cur_padded = padded
                         cur_pad = digitlen
@@ -468,12 +492,15 @@ class RangeSet(set):
         if cur_start is not None:
             if cur_step is not None:
                 # stepped is True when autostep setting does apply
-                stepped = (last_idx - cur_start >= self._autostep * cur_step)
+                stepped = last_idx - cur_start >= self._autostep * cur_step
             else:
                 stepped = True
 
             if stepped or cur_step == 1:
-                yield slice(cur_start, last_idx + 1, cur_step), cur_pad if cur_padded else 0
+                yield (
+                    slice(cur_start, last_idx + 1, cur_step),
+                    cur_pad if cur_padded else 0,
+                )
             else:
                 for j in range(cur_start, last_idx + 1, cur_step):
                     yield slice(j, j + 1, 1), cur_pad if cur_padded else 0
@@ -506,8 +533,7 @@ class RangeSet(set):
         elif isinstance(index, int):
             return self._sorted()[index]
         else:
-            raise TypeError("%s indices must be integers" %
-                            self.__class__.__name__)
+            raise TypeError("%s indices must be integers" % self.__class__.__name__)
 
     def split(self, nbr):
         """
@@ -516,12 +542,12 @@ class RangeSet(set):
         less 1. Current rangeset remains unmodified. Returns an
         iterator.
 
-        >>> RangeSet("1-5").split(3) 
+        >>> RangeSet("1-5").split(3)
         RangeSet("1-2")
         RangeSet("3-4")
         RangeSet("foo5")
         """
-        assert(nbr > 0)
+        assert nbr > 0
 
         # We put the same number of element in each sub-nodeset.
         slice_size = len(self) // int(nbr)
@@ -530,7 +556,7 @@ class RangeSet(set):
         begin = 0
         for i in range(0, min(nbr, len(self))):
             length = slice_size + int(i < left)
-            yield self[begin:begin + length]
+            yield self[begin : begin + length]
             begin += length
 
     def add_range(self, start, stop, step=1, pad=0):
@@ -556,7 +582,7 @@ class RangeSet(set):
         cpy.update(self)
         return cpy
 
-    __copy__ = copy # For the copy module
+    __copy__ = copy  # For the copy module
 
     def __eq__(self, other):
         """
@@ -824,7 +850,7 @@ class RangeSet(set):
             else:
                 set.discard(self, "%0*d" % (pad, int(element)))
         except ValueError:
-            pass # ignore other object types
+            pass  # ignore other object types
 
 
 class RangeSetND(object):
@@ -850,6 +876,7 @@ class RangeSetND(object):
 
         RangeSetND([(0, 4), (0, 5), (1, 4), (1, 5), ...]
     """
+
     def __init__(self, args=None, pads=None, autostep=None, copy_rangeset=True):
         """RangeSetND initializer
 
@@ -872,7 +899,7 @@ class RangeSetND(object):
         self._dirty = True
         # Initialize autostep through property
         self._autostep = None
-        self.autostep = autostep #: autostep threshold public instance attribute
+        self.autostep = autostep  #: autostep threshold public instance attribute
         # Hint on whether several dimensions are varying or not
         self._multivar_hint = False
         if args is None:
@@ -880,8 +907,9 @@ class RangeSetND(object):
         for rgvec in args:
             if rgvec:
                 if isinstance(rgvec[0], str):
-                    self._veclist.append([RangeSet(rg, autostep=autostep) \
-                                          for rg in rgvec])
+                    self._veclist.append(
+                        [RangeSet(rg, autostep=autostep) for rg in rgvec]
+                    )
                 elif isinstance(rgvec[0], RangeSet):
                     if copy_rangeset:
                         self._veclist.append([rg.copy() for rg in rgvec])
@@ -889,22 +917,27 @@ class RangeSetND(object):
                         self._veclist.append(rgvec)
                 else:
                     if pads is None:
-                        self._veclist.append( \
-                            [RangeSet.fromone(rg, autostep=autostep) \
-                                for rg in rgvec])
+                        self._veclist.append(
+                            [RangeSet.fromone(rg, autostep=autostep) for rg in rgvec]
+                        )
                     else:
-                        self._veclist.append( \
-                            [RangeSet.fromone(rg, pad, autostep) \
-                                for rg, pad in zip(rgvec, pads)])
+                        self._veclist.append(
+                            [
+                                RangeSet.fromone(rg, pad, autostep)
+                                for rg, pad in zip(rgvec, pads)
+                            ]
+                        )
 
     class precond_fold(object):
         """Decorator to ease internal folding management"""
+
         def __call__(self, func):
             def inner(*args, **kwargs):
                 rgnd, fargs = args[0], args[1:]
                 if rgnd._dirty:
                     rgnd._fold()
                 return func(rgnd, *fargs, **kwargs)
+
             # modify the decorator meta-data for pydoc
             # Note: should be later replaced  by @wraps (functools)
             # as of Python 2.5
@@ -924,7 +957,7 @@ class RangeSetND(object):
         cpy._dirty = self._dirty
         return cpy
 
-    __copy__ = copy # For the copy module
+    __copy__ = copy  # For the copy module
 
     def __eq__(self, other):
         """RangeSetND equality comparison."""
@@ -944,8 +977,7 @@ class RangeSetND(object):
 
     def __len__(self):
         """Count unique elements in N-dimensional rangeset."""
-        return sum([reduce(mul, [len(rg) for rg in rgvec]) \
-                                 for rgvec in self.veclist])
+        return sum([reduce(mul, [len(rg) for rg in rgvec]) for rgvec in self.veclist])
 
     @precond_fold()
     def __str__(self):
@@ -1040,7 +1072,7 @@ class RangeSetND(object):
             iveclist = []
             for rgvec in self._veclist:
                 iveclist += product(*rgvec)
-            assert(len(iveclist) == len(self))
+            assert len(iveclist) == len(self)
             rnd = RangeSetND(iveclist[index], autostep=self.autostep)
             return rnd
 
@@ -1064,8 +1096,7 @@ class RangeSetND(object):
                         length += 1
             raise IndexError("%d out of range" % index)
         else:
-            raise TypeError("%s indices must be integers" %
-                            self.__class__.__name__)
+            raise TypeError("%s indices must be integers" % self.__class__.__name__)
 
     @precond_fold()
     def contiguous(self):
@@ -1144,6 +1175,7 @@ class RangeSetND(object):
 
     def _sort(self):
         """N-dimensional sorting."""
+
         def rgveckeyfunc(rgvec):
             # key used for sorting purposes, based on the following
             # conditions:
@@ -1151,8 +1183,11 @@ class RangeSetND(object):
             #   (2) larger dim first  (#elements)
             #   (3) lower first index first
             #   (4) lower last index first
-            return (-reduce(mul, [len(rg) for rg in rgvec]), \
-                    tuple((-len(rg), rg[0], rg[-1]) for rg in rgvec))
+            return (
+                -reduce(mul, [len(rg) for rg in rgvec]),
+                tuple((-len(rg), rg[0], rg[-1]) for rg in rgvec),
+            )
+
         self._veclist.sort(key=rgveckeyfunc)
 
     @precond_fold()
@@ -1186,7 +1221,7 @@ class RangeSetND(object):
                     if dimdiff > 1:
                         break
                     vardim = i
-        univar = (dim == 1 or dimdiff == 1)
+        univar = dim == 1 or dimdiff == 1
         if univar:
             # Eligible for univariate folding (faster!)
             for vec in self._veclist[1:]:
@@ -1206,14 +1241,15 @@ class RangeSetND(object):
 
     def _fold_multivariate_expand(self):
         """Multivariate nD folding: expand [phase 1]"""
-        self._veclist = [[RangeSet.fromone(i, autostep=self.autostep)
-                          for i in tvec]
-                         for tvec in set(self._iter())]
+        self._veclist = [
+            [RangeSet.fromone(i, autostep=self.autostep) for i in tvec]
+            for tvec in set(self._iter())
+        ]
 
     def _fold_multivariate_merge(self):
         """Multivariate nD folding: merge [phase 2]"""
         full = False  # try easy O(n) passes first
-        chg = True    # new pass (eg. after change on veclist)
+        chg = True  # new pass (eg. after change on veclist)
         while chg:
             chg = False
             self._sort()  # sort veclist before new pass
@@ -1233,13 +1269,13 @@ class RangeSetND(object):
                     for pos, (rg1, rg2) in enumerate(zip(item1, item2)):
                         if rg1 == rg2:
                             new_item[pos] = rg1
-                        elif not rg1 & rg2: # merge on disjoint ranges
+                        elif not rg1 & rg2:  # merge on disjoint ranges
                             nb_diff += 1
                             if nb_diff > 1:
                                 break
                             new_item[pos] = rg1 | rg2
                         # if fully contained, keep the largest one
-                        elif (rg1 > rg2 or rg1 < rg2): # and nb_diff == 0:
+                        elif rg1 > rg2 or rg1 < rg2:  # and nb_diff == 0:
                             nb_diff += 1
                             if nb_diff > 1:
                                 break
@@ -1328,28 +1364,28 @@ class RangeSetND(object):
         if strict and not other in self:
             raise KeyError(other.difference(self)[0])
 
-        ergvx = other._veclist # read only
+        ergvx = other._veclist  # read only
         rgnd_new = []
         index1 = 0
         while index1 < len(self._veclist):
             rgvec1 = self._veclist[index1]
-            procvx1 = [ rgvec1 ]
+            procvx1 = [rgvec1]
             nextvx1 = []
             index2 = 0
             while index2 < len(ergvx):
                 rgvec2 = ergvx[index2]
-                while len(procvx1) > 0: # refine diff for each resulting vector
+                while len(procvx1) > 0:  # refine diff for each resulting vector
                     rgproc1 = procvx1.pop(0)
                     tmpvx = []
                     for pos, (rg1, rg2) in enumerate(zip(rgproc1, rgvec2)):
-                        if rg1 == rg2 or rg1 < rg2: # issubset
+                        if rg1 == rg2 or rg1 < rg2:  # issubset
                             pass
-                        elif rg1 & rg2:             # intersect
+                        elif rg1 & rg2:  # intersect
                             tmpvec = list(rgproc1)
                             tmpvec[pos] = rg1.difference(rg2)
                             tmpvx.append(tmpvec)
-                        else:                       # disjoint
-                            tmpvx = [ rgproc1 ]     # reset previous work
+                        else:  # disjoint
+                            tmpvx = [rgproc1]  # reset previous work
                             break
                     if tmpvx:
                         nextvx1 += tmpvx
@@ -1412,8 +1448,7 @@ class RangeSetND(object):
 
         for rgvec in self._veclist:
             for ergvec in other._veclist:
-                irgvec = [rg.intersection(erg) \
-                            for rg, erg in zip(rgvec, ergvec)]
+                irgvec = [rg.intersection(erg) for rg, erg in zip(rgvec, ergvec)]
                 if not empty_rset in irgvec:
                     tmp_rnd.update([irgvec])
         # substitute
@@ -1466,4 +1501,3 @@ class RangeSetND(object):
         self._binary_sanity_check(other)
         self.symmetric_difference_update(other)
         return self
-

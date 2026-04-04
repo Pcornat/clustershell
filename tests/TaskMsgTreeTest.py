@@ -5,9 +5,8 @@
 
 import unittest
 
-from ClusterShell.Task import TaskMsgTreeError
-from ClusterShell.Task import task_cleanup, task_self
 from ClusterShell.Event import EventHandler
+from ClusterShell.Task import TaskMsgTreeError, task_cleanup, task_self
 
 
 class TaskMsgTreeTest(unittest.TestCase):
@@ -22,7 +21,7 @@ class TaskMsgTreeTest(unittest.TestCase):
         task = task_self()
         # init worker
         worker = task.shell("echo foo bar")
-        task.set_default('stdout_msgtree', True)
+        task.set_default("stdout_msgtree", True)
         # run task
         task.resume()
         # should not raise
@@ -40,21 +39,23 @@ class TaskMsgTreeTest(unittest.TestCase):
         """test TaskMsgTree disabled"""
         task = task_self()
         worker = task.shell("echo foo bar2")
-        task.set_default('stdout_msgtree', False)
+        task.set_default("stdout_msgtree", False)
         task.resume()
         self.assertRaises(TaskMsgTreeError, task.iter_buffers)
         #
         # can be re-enabled (cold)
-        task.set_default('stdout_msgtree', True)
+        task.set_default("stdout_msgtree", True)
         # but no messages should be found
         self.assertEqual(list(task.iter_buffers()), [])
 
     def testHotEnablingMsgTree(self):
         """test TaskMsgTree enabling at runtime (v1.7)"""
+
         class HotEH2(EventHandler):
             def ev_read(self, worker, node, sname, msg):
                 worker.task.set_default("stdout_msgtree", True)
-                worker.task.shell("echo foo bar2") # default EH
+                worker.task.shell("echo foo bar2")  # default EH
+
         task = task_self()
         task.set_default("stdout_msgtree", False)
         self.assertEqual(task.default("stdout_msgtree"), False)
@@ -66,10 +67,12 @@ class TaskMsgTreeTest(unittest.TestCase):
 
     def testHotDisablingMsgTree(self):
         """test TaskMsgTree disabling at runtime (v1.7)"""
+
         class HotEH2(EventHandler):
             def ev_read(self, worker, node, sname, msg):
                 worker.task.set_default("stdout_msgtree", False)
-                worker.task.shell("echo foo bar2") # default EH
+                worker.task.shell("echo foo bar2")  # default EH
+
         task = task_self()
         self.assertEqual(task.default("stdout_msgtree"), True)
         worker = task.shell("echo foo bar", handler=HotEH2())
@@ -83,7 +86,7 @@ class TaskMsgTreeTest(unittest.TestCase):
         task = task_self()
         worker = task.shell("echo foo bar 1>&2", stderr=True)
         worker = task.shell("echo just foo bar", stderr=True)
-        task.set_default('stderr_msgtree', True)
+        task.set_default("stderr_msgtree", True)
         # run task
         task.resume()
         # should not raise:
@@ -98,7 +101,7 @@ class TaskMsgTreeTest(unittest.TestCase):
         task = task_self()
         worker = task.shell("echo foo bar2 1>&2", stderr=True)
         worker = task.shell("echo just foo bar2", stderr=True)
-        task.set_default('stderr_msgtree', False)
+        task.set_default("stderr_msgtree", False)
         # run task
         task.resume()
         # iter_errors() should raise
@@ -108,7 +111,7 @@ class TaskMsgTreeTest(unittest.TestCase):
             pass
         #
         # can be re-enabled (cold)
-        task.set_default('stderr_msgtree', True)
+        task.set_default("stderr_msgtree", True)
         # but no messages should be found
         self.assertEqual(list(task.iter_errors()), [])
 
@@ -116,7 +119,7 @@ class TaskMsgTreeTest(unittest.TestCase):
         """test Task.flush_buffers"""
         task = task_self()
         worker = task.shell("echo foo bar")
-        task.set_default('stdout_msgtree', True)
+        task.set_default("stdout_msgtree", True)
         # run task
         task.resume()
         task.flush_buffers()
@@ -126,7 +129,7 @@ class TaskMsgTreeTest(unittest.TestCase):
         """test Task.flush_errors"""
         task = task_self()
         worker = task.shell("echo foo bar 1>&2")
-        task.set_default('stderr_msgtree', True)
+        task.set_default("stderr_msgtree", True)
         # run task
         task.resume()
         task.flush_errors()
@@ -136,7 +139,7 @@ class TaskMsgTreeTest(unittest.TestCase):
         """test worker common stream names change"""
         task = task_self()
         worker = task.shell("echo foo 1>&2; echo bar", stderr=True)
-        worker.SNAME_STDOUT = 'dummy-stdout' # disable buffering on stdout only
+        worker.SNAME_STDOUT = "dummy-stdout"  # disable buffering on stdout only
         task.resume()
         # only stderr should have been buffered at task level
         self.assertEqual(len(list(task.iter_buffers())), 0)

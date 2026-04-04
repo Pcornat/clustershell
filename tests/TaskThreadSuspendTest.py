@@ -4,16 +4,15 @@
 """Unit test for ClusterShell in multithreaded environments"""
 
 import random
-import time
 import threading
+import time
 import unittest
 
-from ClusterShell.Task import *
 from ClusterShell.Event import EventHandler
+from ClusterShell.Task import *
 
 
 class TaskThreadSuspendTest(unittest.TestCase):
-
     def tearDown(self):
         task_cleanup()
 
@@ -44,8 +43,8 @@ class TaskThreadSuspendTest(unittest.TestCase):
 
     def _thread_delayed_unsuspend_func(self, task):
         """thread used to unsuspend task during task_wait()"""
-        time_th = int(random.random()*6+5)
-        #print "TIME unsuspend thread=%d" % time_th
+        time_th = int(random.random() * 6 + 5)
+        # print "TIME unsuspend thread=%d" % time_th
         time.sleep(time_th)
         self.resumed = True
         task.resume()
@@ -54,10 +53,11 @@ class TaskThreadSuspendTest(unittest.TestCase):
         """test task_wait() with suspended tasks"""
         task = Task()
         self.resumed = False
-        threading.Thread(None, self._thread_delayed_unsuspend_func,
-                         args=(task,)).start()
-        time_sh = int(random.random()*4)
-        #print "TIME shell=%d" % time_sh
+        threading.Thread(
+            None, self._thread_delayed_unsuspend_func, args=(task,)
+        ).start()
+        time_sh = int(random.random() * 4)
+        # print "TIME shell=%d" % time_sh
         task.shell("sleep %d" % time_sh)
         task.resume()
         time.sleep(1)

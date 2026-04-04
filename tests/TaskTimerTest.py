@@ -5,26 +5,25 @@
 
 import copy
 import threading
-from time import sleep, time
 import unittest
+from time import sleep, time
 
-from .TLib import HOSTNAME
-from ClusterShell.Engine.Engine import EngineTimer, EngineIllegalOperationError
+from ClusterShell.Engine.Engine import EngineIllegalOperationError, EngineTimer
 from ClusterShell.Event import EventHandler
 from ClusterShell.Task import *
 
+from .TLib import HOSTNAME
 
-EV_START=0x01
-EV_READ=0x02
-EV_WRITTEN=0x04
-EV_HUP=0x08
-EV_TIMEOUT=0x10
-EV_CLOSE=0x20
-EV_TIMER=0x40
+EV_START = 0x01
+EV_READ = 0x02
+EV_WRITTEN = 0x04
+EV_HUP = 0x08
+EV_TIMEOUT = 0x10
+EV_CLOSE = 0x20
+EV_TIMER = 0x40
 
 
 class TaskTimerTest(unittest.TestCase):
-
     class TSimpleTimerChecker(EventHandler):
         def __init__(self):
             self.count = 0
@@ -119,8 +118,10 @@ class TaskTimerTest(unittest.TestCase):
         task.resume()
         t2 = time()
         check_precision = 0.05
-        self.assertTrue(abs((t2 - t1) - delay) < check_precision,
-                        "%f >= %f" % (abs((t2 - t1) - delay), check_precision))
+        self.assertTrue(
+            abs((t2 - t1) - delay) < check_precision,
+            "%f >= %f" % (abs((t2 - t1) - delay), check_precision),
+        )
         self.assertEqual(test_handler.count, 1)
 
     def testPrecision1(self):
@@ -146,7 +147,7 @@ class TaskTimerTest(unittest.TestCase):
         worker2 = task0.shell("/bin/uname -a")
         timer1 = task0.timer(1.0, handler=test_handler)
         task0.resume()
-        self.assertEqual(test_handler.count, 2) # same handler, called 2 times
+        self.assertEqual(test_handler.count, 2)  # same handler, called 2 times
         self.assertEqual(worker2.read(), b2)
         self.assertEqual(worker1.read(), b1)
 
@@ -163,27 +164,34 @@ class TaskTimerTest(unittest.TestCase):
 
     class TEventHandlerTimerInvalidate(EventHandler):
         """timer operations event handler simulator"""
+
         def __init__(self, test):
             self.test = test
             self.timer = None
             self.timer_count = 0
             self.flags = 0
+
         def ev_start(self, worker):
             self.flags |= EV_START
+
         def ev_read(self, worker, node, sname, msg):
             self.test.assertEqual(self.flags, EV_START)
             self.flags |= EV_READ
+
         def ev_written(self, worker, node, sname, size):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_WRITTEN
+
         def ev_hup(self, worker, node, rc):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_HUP
+
         def ev_close(self, worker, timedout):
             self.test.assertTrue(self.flags & EV_START)
             if timedout:
                 self.flags |= EV_TIMEOUT
             self.flags |= EV_CLOSE
+
         def ev_timer(self, timer):
             self.flags |= EV_TIMER
             self.timer_count += 1
@@ -210,22 +218,28 @@ class TaskTimerTest(unittest.TestCase):
             self.timer = None
             self.timer_count = 0
             self.flags = 0
+
         def ev_start(self, worker):
             self.flags |= EV_START
+
         def ev_read(self, worker, node, sname, msg):
             self.test.assertEqual(self.flags, EV_START)
             self.flags |= EV_READ
+
         def ev_written(self, worker):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_WRITTEN
+
         def ev_hup(self, worker, node, rc):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_HUP
+
         def ev_close(self, worker, timedout):
             self.test.assertTrue(self.flags & EV_START)
             if timedout:
                 self.flags |= EV_TIMEOUT
             self.flags |= EV_CLOSE
+
         def ev_timer(self, timer):
             self.flags |= EV_TIMER
             if self.timer_count < 4:
@@ -249,26 +263,33 @@ class TaskTimerTest(unittest.TestCase):
 
     class TEventHandlerTimerOtherInvalidate(EventHandler):
         """timer operations event handler simulator"""
+
         def __init__(self, test):
             self.test = test
             self.timer = None
             self.flags = 0
+
         def ev_start(self, worker):
             self.flags |= EV_START
+
         def ev_read(self, worker, node, sname, msg):
             self.flags |= EV_READ
             self.timer.invalidate()
+
         def ev_written(self, worker):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_WRITTEN
+
         def ev_hup(self, worker, node, rc):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_HUP
+
         def ev_close(self, worker, timedout):
             self.test.assertTrue(self.flags & EV_START)
             if timedout:
                 self.flags |= EV_TIMEOUT
             self.flags |= EV_CLOSE
+
         def ev_timer(self, timer):
             self.flags |= EV_TIMER
 
@@ -321,17 +342,22 @@ class TaskTimerTest(unittest.TestCase):
             self.timer = None
             self.timer_count = 0
             self.flags = 0
+
         def ev_start(self, worker):
             self.flags |= EV_START
+
         def ev_read(self, worker, node, sname, msg):
             self.test.assertEqual(self.flags, EV_START)
             self.flags |= EV_READ
+
         def ev_written(self, worker):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_WRITTEN
+
         def ev_hup(self, worker, node, rc):
             self.test.assertTrue(self.flags & EV_START)
             self.flags |= EV_HUP
+
         def ev_close(self, worker, timedout):
             self.test.assertTrue(self.flags & EV_START)
             if timedout:
@@ -340,6 +366,7 @@ class TaskTimerTest(unittest.TestCase):
             # set next fire delay, also disable previously setup interval
             # (timer will not repeat anymore)
             self.timer.set_nextfire(0.5)
+
         def ev_timer(self, timer):
             self.flags |= EV_TIMER
             self.timer_count += 1
@@ -408,7 +435,6 @@ class TaskTimerTest(unittest.TestCase):
         self.assertEqual(test_handler.count, 2)
 
     class TForceDelayedRepeaterAutoCloseChecker(EventHandler):
-
         INTERVAL = 0.25
 
         def __init__(self):
@@ -468,7 +494,6 @@ class TaskTimerTest(unittest.TestCase):
     def testTimerAddFromAnotherThread(self):
         """test timer creation from another thread"""
         task = task_self()
-        threading.Thread(None, self._thread_timer_create_func,
-                         args=(task,)).start()
+        threading.Thread(None, self._thread_timer_create_func, args=(task,)).start()
         task.resume()
         task_wait()

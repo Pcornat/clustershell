@@ -52,12 +52,10 @@ import binascii
 import logging
 import os
 import xml.sax
-
+from collections import deque
+from xml.sax import SAXParseException
 from xml.sax.handler import ContentHandler
 from xml.sax.saxutils import XMLGenerator
-from xml.sax import SAXParseException
-
-from collections import deque
 
 try:
     # Use cStringIO by default as it is faster
@@ -68,9 +66,8 @@ except ImportError:  # Python 3 compat
 from ClusterShell import __version__
 from ClusterShell.Event import EventHandler
 
-
 # XML character encoding
-ENCODING = 'utf-8'
+ENCODING = "utf-8"
 
 # See Message.data_encode()
 DEFAULT_B64_LINE_LENGTH = 65536
@@ -84,6 +81,7 @@ class MessageProcessingError(Exception):
 
 class XMLReader(ContentHandler):
     """SAX handler for XML -> Messages instances conversion"""
+
     def __init__(self):
         """XMLReader initializer"""
         ContentHandler.__init__(self)
@@ -95,21 +93,21 @@ class XMLReader(ContentHandler):
 
     def startElement(self, name, attrs):
         """read a starting xml tag"""
-        if name == 'channel':
-            self.version = attrs.get('version')
+        if name == "channel":
+            self.version = attrs.get("version")
             self.msg_queue.appendleft(StartMessage())
-        elif name == 'message':
+        elif name == "message":
             self._draft_new(attrs)
         else:
-            raise MessageProcessingError('Invalid starting tag %s' % name)
+            raise MessageProcessingError("Invalid starting tag %s" % name)
 
     def endElement(self, name):
         """read an ending xml tag"""
         # end of message
-        if name == 'message':
+        if name == "message":
             self.msg_queue.appendleft(self._draft)
             self._draft = None
-        elif name == 'channel':
+        elif name == "channel":
             self.msg_queue.appendleft(EndMessage())
 
     def characters(self, content):
@@ -142,11 +140,11 @@ class XMLReader(ContentHandler):
             RoutingMessage.ident: RoutingMessage,
         }
         try:
-            msg_type = attributes['type']
+            msg_type = attributes["type"]
             # select the good constructor
             ctor = ctors_map[msg_type]
         except KeyError:
-            raise MessageProcessingError('Unknown message type')
+            raise MessageProcessingError("Unknown message type")
         # build message with its attributes
         self._draft = ctor()
         self._draft.selfbuild(attributes)
@@ -170,13 +168,12 @@ class Channel(EventHandler):
     """
 
     # Common channel stream names
-    SNAME_WRITER = 'ch-writer'
-    SNAME_READER = 'ch-reader'
-    SNAME_ERROR = 'ch-error'
+    SNAME_WRITER = "ch-writer"
+    SNAME_READER = "ch-reader"
+    SNAME_ERROR = "ch-error"
 
     def __init__(self, initiator=False):
-        """
-        """
+        """ """
         EventHandler.__init__(self)
 
         self.worker = None
@@ -202,12 +199,12 @@ class Channel(EventHandler):
     def _open(self):
         """open a new communication channel from src to dst"""
         xmlgen = XMLGenerator(self.worker, encoding=ENCODING)
-        xmlgen.startElement('channel', {'version': __version__})
+        xmlgen.startElement("channel", {"version": __version__})
 
     def _close(self, abort=False):
         """close an already opened channel"""
         if self.opened and not abort:
-            XMLGenerator(self.worker, encoding=ENCODING).endElement('channel')
+            XMLGenerator(self.worker, encoding=ENCODING).endElement("channel")
         self.worker.abort()
         self.opened = self.setup = False
 
@@ -227,8 +224,8 @@ class Channel(EventHandler):
             return
 
         try:
-            self._parser.feed(msg + b'\n')
-            if hasattr(self._parser, 'flush'):  # GH#556
+            self._parser.feed(msg + b"\n")
+            if hasattr(self._parser, "flush"):  # GH#556
                 self._parser.flush()
         except SAXParseException as ex:
             self.logger.error("SAXParseException: %s: %s", ex.getMessage(), msg)
@@ -237,7 +234,7 @@ class Channel(EventHandler):
                 self.recv(StdErrMessage(node, ex.getMessage()))
             else:
                 # target, not initiator: we can send an error message back
-                self.send(ErrorMessage('Parse error: %s' % ex.getMessage()))
+                self.send(ErrorMessage("Parse error: %s" % ex.getMessage()))
             # This constitutes a fatal channel error, close it now.
             self._close()
             return
@@ -260,29 +257,29 @@ class Channel(EventHandler):
 
     def send(self, msg):
         """write an outgoing message as its XML representation"""
-        #self.logger.debug('SENDING to worker %s: "%s"', id(self.worker),
+        # self.logger.debug('SENDING to worker %s: "%s"', id(self.worker),
         #                  msg.xml())
-        self.worker.write(msg.xml() + b'\n', sname=self.SNAME_WRITER)
+        self.worker.write(msg.xml() + b"\n", sname=self.SNAME_WRITER)
 
     def start(self):
         """initialization logic"""
-        raise NotImplementedError('Abstract method: subclasses must implement')
+        raise NotImplementedError("Abstract method: subclasses must implement")
 
     def recv(self, msg):
         """callback: process incoming message"""
-        raise NotImplementedError('Abstract method: subclasses must implement')
+        raise NotImplementedError("Abstract method: subclasses must implement")
 
 
 class Message(object):
     """base message class"""
+
     _inst_counter = 0
-    ident = 'GEN'
+    ident = "GEN"
     has_payload = False
 
     def __init__(self):
-        """
-        """
-        self.attr = {'type': str, 'msgid': int}
+        """ """
+        self.attr = {"type": str, "msgid": int}
         self.type = self.__class__.ident
         self.msgid = Message._inst_counter
         self.data = None
@@ -299,10 +296,13 @@ class Message(object):
         # newlines to very long lines to avoid memory pressure (eg. --rcopy).
         # In RFC-4648, CRLF characters constitute "non-alphabet characters"
         # and are ignored.
-        line_length = int(os.environ.get('CLUSTERSHELL_GW_B64_LINE_LENGTH',
-                                         DEFAULT_B64_LINE_LENGTH))
-        self.data = b'\n'.join(encoded[pos:pos+line_length]
-                               for pos in range(0, len(encoded), line_length))
+        line_length = int(
+            os.environ.get("CLUSTERSHELL_GW_B64_LINE_LENGTH", DEFAULT_B64_LINE_LENGTH)
+        )
+        self.data = b"\n".join(
+            encoded[pos : pos + line_length]
+            for pos in range(0, len(encoded), line_length)
+        )
 
     def data_decode(self):
         """deserialize a previously encoded instance and return it"""
@@ -313,8 +313,9 @@ class Message(object):
             return cPickle.loads(base64.b64decode(self.data))
         except (EOFError, TypeError, cPickle.UnpicklingError, binascii.Error):
             # raised by cPickle.loads() if self.data is not valid
-            raise MessageProcessingError('Message %s has an invalid payload'
-                                         % self.ident)
+            raise MessageProcessingError(
+                "Message %s has an invalid payload" % self.ident
+            )
 
     def data_update(self, raw):
         """append data to the instance (used for deserialization)"""
@@ -325,8 +326,9 @@ class Message(object):
                 self.data += raw
         else:
             # ensure that incoming messages don't contain unexpected payloads
-            raise MessageProcessingError('Got unexpected payload for Message %s'
-                                         % self.ident)
+            raise MessageProcessingError(
+                "Got unexpected payload for Message %s" % self.ident
+            )
 
     def selfbuild(self, attributes):
         """self construction from a table of attributes"""
@@ -335,12 +337,13 @@ class Message(object):
                 setattr(self, k, fmt(attributes[k]))
             except KeyError:
                 raise MessageProcessingError(
-                    'Invalid "message" attributes: missing key "%s"' % k)
+                    'Invalid "message" attributes: missing key "%s"' % k
+                )
 
     def __str__(self):
         """printable representation"""
-        elts = ['%s: %s' % (k, str(self.__dict__[k])) for k in self.attr.keys()]
-        attributes = ', '.join(elts)
+        elts = ["%s: %s" % (k, str(self.__dict__[k])) for k in self.attr.keys()]
+        attributes = ", ".join(elts)
         return "Message %s (%s)" % (self.type, attributes)
 
     def xml(self):
@@ -353,128 +356,146 @@ class Message(object):
         for k in self.attr:
             state[k] = str(getattr(self, k))
 
-        generator.startElement('message', state)
+        generator.startElement("message", state)
         if self.data:
             generator.characters(self.data)
-        generator.endElement('message')
+        generator.endElement("message")
         xml_msg = out.getvalue()
         out.close()
         return xml_msg
 
+
 class ConfigurationMessage(Message):
     """configuration propagation container"""
-    ident = 'CFG'
+
+    ident = "CFG"
     has_payload = True
 
-    def __init__(self, gateway=''):
+    def __init__(self, gateway=""):
         """initialize with gateway node name"""
         Message.__init__(self)
-        self.attr.update({'gateway': str})
+        self.attr.update({"gateway": str})
         self.gateway = gateway
+
 
 class RoutedMessageBase(Message):
     """abstract class for routed message (with worker source id)"""
+
     def __init__(self, srcid):
         Message.__init__(self)
-        self.attr.update({'srcid': int})
+        self.attr.update({"srcid": int})
         self.srcid = srcid
+
 
 class ControlMessage(RoutedMessageBase):
     """action request"""
-    ident = 'CTL'
+
+    ident = "CTL"
     has_payload = True
 
     def __init__(self, srcid=0):
-        """
-        """
+        """ """
         RoutedMessageBase.__init__(self, srcid)
-        self.attr.update({'action': str, 'target': str})
-        self.action = ''
-        self.target = ''
+        self.attr.update({"action": str, "target": str})
+        self.action = ""
+        self.target = ""
+
 
 class ACKMessage(Message):
     """acknowledgement message"""
-    ident = 'ACK'
+
+    ident = "ACK"
 
     def __init__(self, ackid=0):
-        """
-        """
+        """ """
         Message.__init__(self)
-        self.attr.update({'ack': int})
+        self.attr.update({"ack": int})
         self.ack = ackid
+
 
 class ErrorMessage(Message):
     """error message"""
-    ident = 'ERR'
 
-    def __init__(self, err=''):
-        """
-        """
+    ident = "ERR"
+
+    def __init__(self, err=""):
+        """ """
         Message.__init__(self)
-        self.attr.update({'reason': str})
+        self.attr.update({"reason": str})
         self.reason = err
+
 
 class StdOutMessage(RoutedMessageBase):
     """container message for standard output"""
-    ident = 'OUT'
+
+    ident = "OUT"
     has_payload = True
 
-    def __init__(self, nodes='', output=None, srcid=0):
+    def __init__(self, nodes="", output=None, srcid=0):
         """
         Initialized either with empty payload (to be loaded, already encoded),
         or with payload provided (via output to encode here).
         """
         RoutedMessageBase.__init__(self, srcid)
-        self.attr.update({'nodes': str})
+        self.attr.update({"nodes": str})
         self.nodes = nodes
-        self.data = None # something encoded or None
+        self.data = None  # something encoded or None
         if output is not None:
             self.data_encode(output)
 
+
 class StdErrMessage(StdOutMessage):
     """container message for stderr output"""
-    ident = 'SER'
+
+    ident = "SER"
+
 
 class RetcodeMessage(RoutedMessageBase):
     """container message for return code"""
-    ident = 'RET'
 
-    def __init__(self, nodes='', retcode=0, srcid=0):
-        """
-        """
+    ident = "RET"
+
+    def __init__(self, nodes="", retcode=0, srcid=0):
+        """ """
         RoutedMessageBase.__init__(self, srcid)
-        self.attr.update({'retcode': int, 'nodes': str})
+        self.attr.update({"retcode": int, "nodes": str})
         self.retcode = retcode
         self.nodes = nodes
 
+
 class TimeoutMessage(RoutedMessageBase):
     """container message for timeout notification"""
-    ident = 'TIM'
 
-    def __init__(self, nodes='', srcid=0):
-        """
-        """
+    ident = "TIM"
+
+    def __init__(self, nodes="", srcid=0):
+        """ """
         RoutedMessageBase.__init__(self, srcid)
-        self.attr.update({'nodes': str})
+        self.attr.update({"nodes": str})
         self.nodes = nodes
+
 
 class RoutingMessage(RoutedMessageBase):
     """container message for routing notification"""
-    ident = 'RTR'
 
-    def __init__(self, event='', gateway='', targets='', srcid=0):
-        """
-        """
+    ident = "RTR"
+
+    def __init__(self, event="", gateway="", targets="", srcid=0):
+        """ """
         RoutedMessageBase.__init__(self, srcid)
-        self.attr.update({'event': str, 'gateway': str, 'targets': str})
+        self.attr.update({"event": str, "gateway": str, "targets": str})
         self.event = event
         self.gateway = gateway
         self.targets = targets
 
+
 class StartMessage(Message):
     """message indicating the start of a channel communication"""
-    ident = 'CHA'
+
+    ident = "CHA"
+
 
 class EndMessage(Message):
     """end of channel message"""
-    ident = 'END'
+
+    ident = "END"

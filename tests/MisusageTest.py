@@ -5,21 +5,23 @@
 
 import unittest
 
-from .TLib import HOSTNAME
 from ClusterShell.Event import EventHandler
+from ClusterShell.Task import AlreadyRunningError, task_self
 from ClusterShell.Worker.Popen import WorkerPopen
 from ClusterShell.Worker.Ssh import WorkerSsh
 from ClusterShell.Worker.Worker import WorkerError
-from ClusterShell.Task import task_self, AlreadyRunningError
+
+from .TLib import HOSTNAME
 
 
 class MisusageTest(unittest.TestCase):
-
     def testTaskResumedTwice(self):
         """test library misusage (task_self resumed twice)"""
+
         class ResumeAgainHandler(EventHandler):
             def ev_read(self, worker, node, sname, msg):
                 worker.task.resume()
+
         task = task_self()
         task.shell("/bin/echo OK", handler=ResumeAgainHandler())
         self.assertRaises(AlreadyRunningError, task.resume)

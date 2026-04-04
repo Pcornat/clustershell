@@ -31,8 +31,7 @@ import select
 import sys
 import time
 
-from ClusterShell.Engine.Engine import Engine, E_READ, E_WRITE
-from ClusterShell.Engine.Engine import EngineTimeoutException
+from ClusterShell.Engine.Engine import E_READ, E_WRITE, Engine, EngineTimeoutException
 from ClusterShell.Worker.EngineClient import EngineClientEOF
 
 
@@ -80,8 +79,7 @@ class EngineSelect(Engine):
         register/unregister and set_events(). For the select() engine,
         it appends/remove the fd to/from the concerned fd_sets.
         """
-        self._debug("MODSPEC fd=%d event=%x setvalue=%d" % (fd, event,
-                                                            setvalue))
+        self._debug("MODSPEC fd=%d event=%x setvalue=%d" % (fd, event, setvalue))
         if setvalue:
             self._register_specific(fd, event)
         else:
@@ -98,8 +96,10 @@ class EngineSelect(Engine):
 
         # run main event loop...
         while self.evlooprefcnt > 0:
-            self._debug("LOOP evlooprefcnt=%d (reg_clifds=%s) (timers=%d)" % 
-                (self.evlooprefcnt, self.reg_clifds.keys(), len(self.timerq)))
+            self._debug(
+                "LOOP evlooprefcnt=%d (reg_clifds=%s) (timers=%d)"
+                % (self.evlooprefcnt, self.reg_clifds.keys(), len(self.timerq))
+            )
             try:
                 timeo = self.timerq.nextfire_delay()
                 if timeout > 0 and timeo >= timeout:
@@ -111,12 +111,14 @@ class EngineSelect(Engine):
 
                 self._current_loopcnt += 1
                 if timeo >= 0:
-                    r_ready, w_ready, x_ready = \
-                        select.select(self._fds_r, self._fds_w, [], timeo)
+                    r_ready, w_ready, x_ready = select.select(
+                        self._fds_r, self._fds_w, [], timeo
+                    )
                 else:
                     # no timeout specified, do not supply the timeout argument
-                    r_ready, w_ready, x_ready = \
-                        select.select(self._fds_r, self._fds_w, [])
+                    r_ready, w_ready, x_ready = select.select(
+                        self._fds_r, self._fds_w, []
+                    )
             except select.error as ex:
                 # might get interrupted by a signal
                 if ex.args[0] == errno.EINTR:
@@ -128,7 +130,6 @@ class EngineSelect(Engine):
 
             # iterate over fd on which events occurred
             for fd in set(r_ready) | set(w_ready):
-
                 # get client instance
                 client, stream = self._fd2client(fd)
                 if client is None:
@@ -142,8 +143,10 @@ class EngineSelect(Engine):
 
                 # check for possible unblocking read on this fd
                 if fd in r_ready:
-                    self._debug("R_READY fd=%d %s (%s)" % (fd,
-                        client.__class__.__name__, client.streams))
+                    self._debug(
+                        "R_READY fd=%d %s (%s)"
+                        % (fd, client.__class__.__name__, client.streams)
+                    )
                     assert fdev & E_READ
                     assert stream.events & fdev
                     self.modify(client, sname, 0, fdev)
@@ -155,8 +158,10 @@ class EngineSelect(Engine):
 
                 # check for writing
                 if fd in w_ready:
-                    self._debug("W_READY fd=%d %s (%s)" % (fd,
-                        client.__class__.__name__, client.streams))
+                    self._debug(
+                        "W_READY fd=%d %s (%s)"
+                        % (fd, client.__class__.__name__, client.streams)
+                    )
                     assert fdev == E_WRITE
                     assert stream.events & fdev
                     self.modify(client, sname, 0, fdev)
@@ -176,5 +181,7 @@ class EngineSelect(Engine):
             # process clients timeout
             self.fire_timers()
 
-        self._debug("LOOP EXIT evlooprefcnt=%d (reg_clifds=%s) (timers=%d)" %
-                    (self.evlooprefcnt, self.reg_clifds, len(self.timerq)))
+        self._debug(
+            "LOOP EXIT evlooprefcnt=%d (reg_clifds=%s) (timers=%d)"
+            % (self.evlooprefcnt, self.reg_clifds, len(self.timerq))
+        )

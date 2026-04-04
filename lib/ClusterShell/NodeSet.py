@@ -54,13 +54,16 @@ import re
 import string
 import sys
 
-from ClusterShell.Defaults import config_paths, DEFAULTS
 import ClusterShell.NodeUtils as NodeUtils
+from ClusterShell.Defaults import DEFAULTS, config_paths
 
 # Import all RangeSet module public objects
-from ClusterShell.RangeSet import RangeSet, RangeSetND, AUTOSTEP_DISABLED
-from ClusterShell.RangeSet import RangeSetParseError
-
+from ClusterShell.RangeSet import (
+    AUTOSTEP_DISABLED,
+    RangeSet,
+    RangeSetND,
+    RangeSetParseError,
+)
 
 # Python 3 compatibility
 try:
@@ -69,10 +72,11 @@ except NameError:
     basestring = str
 
 # Define default GroupResolver object used by NodeSet
-DEF_GROUPS_CONFIGS = config_paths('groups.conf')
+DEF_GROUPS_CONFIGS = config_paths("groups.conf")
 ILLEGAL_GROUP_CHARS = set("@,!&^*")
-_DEF_RESOLVER_STD_GROUP = NodeUtils.GroupResolverConfig(DEF_GROUPS_CONFIGS,
-                                                        ILLEGAL_GROUP_CHARS)
+_DEF_RESOLVER_STD_GROUP = NodeUtils.GroupResolverConfig(
+    DEF_GROUPS_CONFIGS, ILLEGAL_GROUP_CHARS
+)
 # Standard group resolver
 RESOLVER_STD_GROUP = _DEF_RESOLVER_STD_GROUP
 # Special constants for NodeSet's resolver parameter
@@ -88,22 +92,28 @@ NOGROUP_RESOLVER = RESOLVER_NOGROUP
 class NodeSetException(Exception):
     """Base NodeSet exception class."""
 
+
 class NodeSetError(NodeSetException):
     """Raised when an error is encountered."""
 
+
 class NodeSetParseError(NodeSetError):
     """Raised when NodeSet parsing cannot be done properly."""
+
     def __init__(self, part, msg):
         if part:
-            msg = "%s: \"%s\"" % (msg, part)
+            msg = '%s: "%s"' % (msg, part)
         NodeSetError.__init__(self, msg)
         # faulty part; this allows you to target the error
         self.part = part
 
+
 class NodeSetParseRangeError(NodeSetParseError):
     """Raised when bad range is encountered during NodeSet parsing."""
+
     def __init__(self, rset_exc):
         NodeSetParseError.__init__(self, str(rset_exc), "bad range")
+
 
 class NodeSetExternalError(NodeSetError):
     """Raised when an external error is encountered."""
@@ -122,15 +132,22 @@ class NodeSetBase(object):
     This class implements core node set arithmetic (no string parsing here).
 
     Example:
-       >>> nsb = NodeSetBase('node%s-ipmi', RangeSet('1-5,7'), False)
+       >>> nsb = NodeSetBase("node%s-ipmi", RangeSet("1-5,7"), False)
        >>> str(nsb)
        'node[1-5,7]-ipmi'
-       >>> nsb = NodeSetBase('node%s-ib%s', RangeSetND([['1-5,7', '1-2']]), False)
+       >>> nsb = NodeSetBase("node%s-ib%s", RangeSetND([["1-5,7", "1-2"]]), False)
        >>> str(nsb)
        'node[1-5,7]-ib[1-2]'
     """
-    def __init__(self, pattern=None, rangeset=None, copy_rangeset=True,
-                 autostep=None, fold_axis=None):
+
+    def __init__(
+        self,
+        pattern=None,
+        rangeset=None,
+        copy_rangeset=True,
+        autostep=None,
+        fold_axis=None,
+    ):
         """New NodeSetBase object initializer"""
         self._autostep = autostep
         self._length = 0
@@ -164,7 +181,7 @@ class NodeSetBase(object):
 
     def _iter(self):
         """Iterator on internal item tuples
-            (pattern, indexes, autostep)."""
+        (pattern, indexes, autostep)."""
         for pat, rset in sorted(self._patterns.items()):
             if rset:
                 autostep = rset.autostep
@@ -181,7 +198,7 @@ class NodeSetBase(object):
     def _iterbase(self):
         """Iterator on single, one-item NodeSetBase objects."""
         for pat, ivec, autostep in self._iter():
-            rset = None     # 'no node index' by default
+            rset = None  # 'no node index' by default
             if ivec is not None:
                 assert len(ivec) > 0
                 if len(ivec) == 1:
@@ -256,17 +273,20 @@ class NodeSetBase(object):
                 fold_axis = range(dimcnt)
             else:
                 # set of user-provided fold axis (support negative numbers)
-                fold_axis = [int(x) % dimcnt for x in self.fold_axis
-                             if -dimcnt <= int(x) < dimcnt]
+                fold_axis = [
+                    int(x) % dimcnt
+                    for x in self.fold_axis
+                    if -dimcnt <= int(x) < dimcnt
+                ]
         except (TypeError, ValueError) as exc:
             raise NodeSetParseError("fold_axis=%s" % self.fold_axis, exc)
 
         for rgvec in rset.vectors():
-            rgnargs = []    # list of str rangeset args
+            rgnargs = []  # list of str rangeset args
             for axis, rangeset in enumerate(rgvec):
                 # build an iterator over rangeset strings to add
                 if len(rangeset) > 1:
-                    if axis not in fold_axis: # expand
+                    if axis not in fold_axis:  # expand
                         rgstrit = rangeset.striter()
                     else:
                         rgstrit = ["[%s]" % rangeset]
@@ -275,7 +295,7 @@ class NodeSetBase(object):
 
                 # aggregate/expand along previous computed axis...
                 t_rgnargs = []
-                for rgstr in rgstrit: # 1-time when not expanding
+                for rgstr in rgstrit:  # 1-time when not expanding
                     if not rgnargs:
                         t_rgnargs.append([rgstr])
                     else:
@@ -296,8 +316,9 @@ class NodeSetBase(object):
                     results.append(pat % ())
                 elif rset.dim() == 1:
                     # check if allowed to fold even for 1D pattern
-                    if self.fold_axis is None or \
-                            list(x for x in self.fold_axis if -1 <= int(x) < 1):
+                    if self.fold_axis is None or list(
+                        x for x in self.fold_axis if -1 <= int(x) < 1
+                    ):
                         rgs = str(rset)
                         cnt = len(rset)
                         if cnt > 1:
@@ -308,8 +329,9 @@ class NodeSetBase(object):
                 elif rset.dim() > 1:
                     results.extend(self._iter_nd_pat(pat, rset))
         except TypeError:
-            raise NodeSetParseError(pat, "Internal error: node pattern and "
-                                         "ranges mismatch")
+            raise NodeSetParseError(
+                pat, "Internal error: node pattern and ranges mismatch"
+            )
         return ",".join(results)
 
     def copy(self):
@@ -335,8 +357,7 @@ class NodeSetBase(object):
         # check that the other argument to a binary operation is also
         # a NodeSet, raising a TypeError otherwise.
         if not isinstance(other, NodeSetBase):
-            raise TypeError("Binary operation only permitted between "
-                            "NodeSetBase")
+            raise TypeError("Binary operation only permitted between NodeSetBase")
 
     def issubset(self, other):
         """Report whether another nodeset contains this nodeset."""
@@ -400,8 +421,7 @@ class NodeSetBase(object):
         elif index.step < 0:
             # We support negative step slicing with no start/stop, ie. r[::-n].
             if index.start is not None or index.stop is not None:
-                raise IndexError("illegal start and stop when negative step "
-                                 "is used")
+                raise IndexError("illegal start and stop when negative step is used")
             # As RangeSet elements are ordered internally, adjust sl_start
             # to fake backward stepping in case of negative slice step.
             stepmod = (length + -index.step - 1) % -index.step
@@ -410,8 +430,11 @@ class NodeSetBase(object):
             sl_step = -index.step
         else:
             sl_step = index.step
-        if not isinstance(sl_start, int) or not isinstance(sl_stop, int) \
-            or not isinstance(sl_step, int):
+        if (
+            not isinstance(sl_start, int)
+            or not isinstance(sl_stop, int)
+            or not isinstance(sl_step, int)
+        ):
             raise TypeError("slice indices must be integers")
         return sl_start, sl_stop, sl_step
 
@@ -431,9 +454,9 @@ class NodeSetBase(object):
                     offset = sl_next - length
                     if offset < cnt:
                         num = min(sl_stop - sl_next, cnt - offset)
-                        inst._add(pat, rangeset[offset:offset + num:sl_step])
+                        inst._add(pat, rangeset[offset : offset + num : sl_step])
                     else:
-                        #skip until sl_next is reached
+                        # skip until sl_next is reached
                         length += cnt
                         continue
                 else:
@@ -445,8 +468,7 @@ class NodeSetBase(object):
                 # adjust sl_next...
                 sl_next += num
                 if (sl_next - sl_start) % sl_step:
-                    sl_next = sl_start + \
-                        ((sl_next - sl_start)/sl_step + 1) * sl_step
+                    sl_next = sl_start + ((sl_next - sl_start) / sl_step + 1) * sl_step
                 if sl_next >= sl_stop:
                     break
                 length += cnt
@@ -455,7 +477,7 @@ class NodeSetBase(object):
             if index < 0:
                 length = len(self)
                 if index >= -length:
-                    index = length + index # - -index
+                    index = length + index  # - -index
                 else:
                     raise IndexError("%d out of range" % index)
             length = 0
@@ -465,9 +487,9 @@ class NodeSetBase(object):
                     if index < length + cnt:
                         # return a subrangeset of size 1 to manage padding
                         if rangeset.dim() == 1:
-                            return pat % rangeset[index-length:index-length+1]
+                            return pat % rangeset[index - length : index - length + 1]
                         else:
-                            sub = rangeset[index-length:index-length+1]
+                            sub = rangeset[index - length : index - length + 1]
                             for rgvec in sub.vectors():
                                 return pat % (tuple(rgvec))
                 else:
@@ -749,7 +771,8 @@ def _strip_escape(nsstr):
     Helper to prepare a nodeset string for parsing: trim boundary
     whitespaces and escape special characters.
     """
-    return nsstr.strip().replace('%', '%%')
+    return nsstr.strip().replace("%", "%%")
+
 
 def _rsets4nsb(rsets, autostep):
     """
@@ -767,15 +790,17 @@ class ParsingEngine(object):
     Class that is able to transform a source into a NodeSetBase.
     """
 
-    OP_CODES = {',': 'update',
-                '!': 'difference_update',
-                '&': 'intersection_update',
-                '^': 'symmetric_difference_update'}
+    OP_CODES = {
+        ",": "update",
+        "!": "difference_update",
+        "&": "intersection_update",
+        "^": "symmetric_difference_update",
+    }
 
-    OP_CODES_PAT = '[%s]' % re.escape(''.join(OP_CODES.keys()))
+    OP_CODES_PAT = "[%s]" % re.escape("".join(OP_CODES.keys()))
 
-    BRACKET_OPEN = '['
-    BRACKET_CLOSE = ']'
+    BRACKET_OPEN = "["
+    BRACKET_CLOSE = "]"
 
     def __init__(self, group_resolver, node_wildcard_enable=True):
         """
@@ -820,23 +845,23 @@ class ParsingEngine(object):
 
         for opc, pat, rgnd in self._scan_string(nsstr, autostep):
             # Parser main debugging:
-            #print "OPC %s PAT %s RANGESETS %s" % (opc, pat, rgnd)
-            if self.group_resolver and pat[0] == '@':
+            # print "OPC %s PAT %s RANGESETS %s" % (opc, pat, rgnd)
+            if self.group_resolver and pat[0] == "@":
                 ns_group = NodeSetBase()
                 for nodegroup in NodeSetBase(pat, rgnd):
                     # parse/expand nodes group: get group string and namespace
-                    ns_str_ext, ns_nsp_ext = self.parse_group_string(nodegroup,
-                                                                     namespace)
-                    if ns_str_ext: # may still contain groups
+                    ns_str_ext, ns_nsp_ext = self.parse_group_string(
+                        nodegroup, namespace
+                    )
+                    if ns_str_ext:  # may still contain groups
                         # recursively parse and aggregate result
-                        ns_group.update(self.parse_string(ns_str_ext,
-                                                          autostep,
-                                                          ns_nsp_ext))
+                        ns_group.update(
+                            self.parse_string(ns_str_ext, autostep, ns_nsp_ext)
+                        )
                 # perform operation
                 getattr(nodeset, opc)(ns_group)
 
-            elif self.group_resolver and self.node_wc and ('*' in pat or
-                                                           '?' in pat):
+            elif self.group_resolver and self.node_wc and ("*" in pat or "?" in pat):
                 # We support ranges with wildcard mask by testing all nodes
                 # against each expanded mask (wcmasks).
                 wcmasks = (str(wcn) for wcn in NodeSetBase(pat, rgnd, False))
@@ -848,8 +873,7 @@ class ParsingEngine(object):
                     try:
                         nsb = NodeSetBase()
                         for res in self.all_nodes(namespace):
-                            nsb.update(self.parse_string(res, autostep,
-                                                         namespace))
+                            nsb.update(self.parse_string(res, autostep, namespace))
                         alln_cache = set(str(node) for node in nsb)
                     finally:
                         self.node_wc = True
@@ -877,13 +901,12 @@ class ParsingEngine(object):
 
     def parse_string_single(self, nsstr, autostep):
         """Parse provided string and return a NodeSetBase object."""
-        pat, rangesets = self._scan_string_single(_strip_escape(nsstr),
-                                                  autostep)
+        pat, rangesets = self._scan_string_single(_strip_escape(nsstr), autostep)
         if len(rangesets) > 1:
             rgobj = RangeSetND([rangesets], None, autostep, copy_rangeset=False)
         elif len(rangesets) == 1:
             rgobj = rangesets[0]
-        else: # non-indexed nodename
+        else:  # non-indexed nodename
             rgobj = None
         return NodeSetBase(pat, rgobj, False)
 
@@ -900,19 +923,19 @@ class ParsingEngine(object):
 
         Return a tuple (grp_resolved_string, namespace).
         """
-        assert nodegroup[0] == '@'
+        assert nodegroup[0] == "@"
         assert self.group_resolver is not None
         grpstr = group = nodegroup[1:]
-        if grpstr.find(':') >= 0:
+        if grpstr.find(":") >= 0:
             # specified namespace does always override
-            namespace, group = grpstr.split(':', 1)
-        if group == '*': # @* or @source:* magic
+            namespace, group = grpstr.split(":", 1)
+        if group == "*":  # @* or @source:* magic
             reslist = self.all_nodes(namespace)
-        elif group.startswith('@'): # @@source group name list
+        elif group.startswith("@"):  # @@source group name list
             reslist = self.grouplist(grpstr[1:])
         else:
             reslist = self.group_resolver.group_nodes(group, namespace)
-        return ','.join(reslist), namespace
+        return ",".join(reslist), namespace
 
     def grouplist(self, namespace=None):
         """
@@ -943,8 +966,7 @@ class ParsingEngine(object):
                     alln += self.group_resolver.group_nodes(grp, namespace)
             except NodeUtils.GroupSourceNoUpcall:
                 # We are not able to find "all" nodes, definitely.
-                msg = "Not enough working methods (all or map + list) to " \
-                      "get all nodes"
+                msg = "Not enough working methods (all or map + list) to get all nodes"
                 raise NodeSetExternalError(msg)
         except NodeUtils.GroupSourceQueryFailed as exc:
             raise NodeSetExternalError("Failed to get all nodes: %s" % exc)
@@ -982,8 +1004,9 @@ class ParsingEngine(object):
                         pad = len(idx)
                     idxint = 0
                 if idxint > 1e100:
-                    raise NodeSetParseRangeError( \
-                        RangeSetParseError(idx, "invalid rangeset index"))
+                    raise NodeSetParseRangeError(
+                        RangeSetParseError(idx, "invalid rangeset index")
+                    )
                 # optimization: use numerical RangeSet constructor
                 pat += "%s%%s" % pfx
                 rangesets.append(RangeSet.fromone(idxint, pad, autostep))
@@ -994,7 +1017,7 @@ class ParsingEngine(object):
 
     def _scan_string(self, nsstr, autostep):
         """Parsing engine's string scanner method (iterator)."""
-        next_op_code = ','  # if no operator, default one is to update nodeset
+        next_op_code = ","  # if no operator, default one is to update nodeset
         while nsstr:
             # Ignore whitespace(s) for convenience
             nsstr = nsstr.lstrip()
@@ -1055,11 +1078,10 @@ class ParsingEngine(object):
                             rsets += pfxrvec
 
                     # readahead for sanity check
-                    bracket_idx = sfx.find(self.BRACKET_OPEN,
-                                           bracket_idx - pfxlen)
+                    bracket_idx = sfx.find(self.BRACKET_OPEN, bracket_idx - pfxlen)
                     op_idx, next_op_code = self._next_op(sfx)
 
-                    if len(sfx) > 0 and sfx[0] == '[':
+                    if len(sfx) > 0 and sfx[0] == "[":
                         msg = "illegal reopening bracket"
                         raise NodeSetParseError(sfx, msg)
 
@@ -1077,8 +1099,9 @@ class ParsingEngine(object):
                     sfx, nsstr = sfx.split(next_op_code, 1)
                     # Detected character operator so right operand is mandatory
                     if not nsstr:
-                        msg = "missing nodeset operand with '%s' " \
-                              "operator" % next_op_code
+                        msg = (
+                            "missing nodeset operand with '%s' operator" % next_op_code
+                        )
                         raise NodeSetParseError(None, msg)
 
                 # Ignore whitespace(s)
@@ -1093,13 +1116,14 @@ class ParsingEngine(object):
                 # the node.
                 if op_idx < 0:
                     node = nsstr
-                    nsstr = None # break next time
+                    nsstr = None  # break next time
                 else:
                     node, nsstr = nsstr.split(next_op_code, 1)
                     # Detected character operator so both operands are mandatory
                     if not node or not nsstr:
-                        msg = "missing nodeset operand with '%s' " \
-                              "operator" % next_op_code
+                        msg = (
+                            "missing nodeset operand with '%s' operator" % next_op_code
+                        )
                         raise NodeSetParseError(node or nsstr, msg)
 
                 # Check for illegal closing bracket
@@ -1124,10 +1148,10 @@ class ParsingEngine(object):
         if outerstriplen < outerlen:
             # get outer bracket leading digits
             outerdigits = outer[outerstriplen:]
-            inner = ','.join(
-                '-'.join(outerdigits + bound for bound in elem.split('-'))
-                for elem in (str(subrng)
-                             for subrng in RangeSet(inner).contiguous()))
+            inner = ",".join(
+                "-".join(outerdigits + bound for bound in elem.split("-"))
+                for elem in (str(subrng) for subrng in RangeSet(inner).contiguous())
+            )
         return outerstrip, inner
 
     def _amend_trailing_digits(self, outer, inner):
@@ -1140,21 +1164,26 @@ class ParsingEngine(object):
         outerlen, outerstriplen = len(outer), len(outerstrip)
         if outerstriplen < outerlen:
             # step syntax is not compatible with trailing digits
-            if '/' in inner:
+            if "/" in inner:
                 msg = "illegal trailing digits after range with steps"
                 raise NodeSetParseError(outer, msg)
             # get outer bracket trailing digits
-            outerdigits = outer[0:outerlen-outerstriplen]
+            outerdigits = outer[0 : outerlen - outerstriplen]
             outlen = len(outerdigits)
+
             def shiftstep(orig, power):
                 """Add needed step after shifting range indexes"""
-                if '-' in orig:
-                    return orig + '/1' + '0' * power
-                return orig # do not use /step for single index
-            inner = ','.join(shiftstep(s, outlen) for s in
-                             ('-'.join(bound + outerdigits
-                                       for bound in elem.split('-'))
-                              for elem in inner.split(',')))
+                if "-" in orig:
+                    return orig + "/1" + "0" * power
+                return orig  # do not use /step for single index
+
+            inner = ",".join(
+                shiftstep(s, outlen)
+                for s in (
+                    "-".join(bound + outerdigits for bound in elem.split("-"))
+                    for elem in inner.split(",")
+                )
+            )
         return outerstrip, inner
 
 
@@ -1164,8 +1193,8 @@ class NodeSet(NodeSetBase):
 
     NodeSet creation examples:
 
-       >>> nodeset = NodeSet()               # empty NodeSet
-       >>> nodeset = NodeSet("cluster3")     # contains only cluster3
+       >>> nodeset = NodeSet()  # empty NodeSet
+       >>> nodeset = NodeSet("cluster3")  # contains only cluster3
        >>> nodeset = NodeSet("cluster[5,10-42]")
        >>> nodeset = NodeSet("cluster[0-10/2]")
        >>> nodeset = NodeSet("cluster[0-10/2],othername[7-9,120-300]")
@@ -1190,7 +1219,7 @@ class NodeSet(NodeSetBase):
 
     Extended string pattern usage examples:
 
-        >>> nodeset = NodeSet("node[0-10],node[14-16]") # union
+        >>> nodeset = NodeSet("node[0-10],node[14-16]")  # union
         >>> nodeset = NodeSet("node[0-10]!node[8-10]")  # difference
         >>> nodeset = NodeSet("node[0-10]&node[5-13]")  # intersection
         >>> nodeset = NodeSet("node[0-10]^node[5-13]")  # xor
@@ -1198,8 +1227,7 @@ class NodeSet(NodeSetBase):
 
     _VERSION = 2
 
-    def __init__(self, nodes=None, autostep=None, resolver=None,
-                 fold_axis=None):
+    def __init__(self, nodes=None, autostep=None, resolver=None, fold_axis=None):
         """Initialize a NodeSet object.
 
         The `nodes` argument may be a valid nodeset string or a NodeSet
@@ -1280,17 +1308,16 @@ class NodeSet(NodeSetBase):
                 # fill this nodeset with all nodes found by resolver
                 inst.updaten(inst._parser.all_nodes(groupsource))
         except NodeUtils.GroupResolverError as exc:
-            errmsg = "Group source error (%s: %s)" % (exc.__class__.__name__,
-                                                      exc)
+            errmsg = "Group source error (%s: %s)" % (exc.__class__.__name__, exc)
             raise NodeSetExternalError(errmsg)
         return inst
 
     def __getstate__(self):
         """Called when pickling: remove references to group resolver."""
         odict = self.__dict__.copy()
-        odict['_version'] = NodeSet._VERSION
-        del odict['_resolver']
-        del odict['_parser']
+        odict["_version"] = NodeSet._VERSION
+        del odict["_resolver"]
+        del odict["_parser"]
         return odict
 
     def __setstate__(self, dic):
@@ -1299,7 +1326,7 @@ class NodeSet(NodeSetBase):
         self.__dict__.update(dic)
         self._resolver = None
         self._parser = ParsingEngine(None)
-        if getattr(self, '_version', 1) <= 1:
+        if getattr(self, "_version", 1) <= 1:
             self.fold_axis = None
             # if setting state from first version, a conversion is needed to
             # support native RangeSetND
@@ -1331,7 +1358,7 @@ class NodeSet(NodeSetBase):
         cpy._parser = self._parser
         return cpy
 
-    __copy__ = copy # For the copy module
+    __copy__ = copy  # For the copy module
 
     def _find_groups(self, node, namespace, allgroups):
         """Find groups of node by namespace."""
@@ -1365,23 +1392,27 @@ class NodeSet(NodeSetBase):
         # Check for external reverse presence, and also use the
         # following heuristic: external reverse is used only when number
         # of groups is greater than the NodeSet size.
-        if self._resolver.has_node_groups(groupsource) and \
-            (not allgrplist or len(allgrplist) >= len(self)):
+        if self._resolver.has_node_groups(groupsource) and (
+            not allgrplist or len(allgrplist) >= len(self)
+        ):
             # use external reverse
             pass
         else:
-            if not allgrplist: # list query failed and no way to reverse!
-                return groups_info # empty
+            if not allgrplist:  # list query failed and no way to reverse!
+                return groups_info  # empty
             try:
                 # use internal reverse: populate allgroups
                 for grp in allgrplist:
                     nodelist = self._resolver.group_nodes(grp, groupsource)
-                    allgroups[grp] = NodeSet(",".join(nodelist),
-                                             resolver=self._resolver)
+                    allgroups[grp] = NodeSet(
+                        ",".join(nodelist), resolver=self._resolver
+                    )
             except NodeUtils.GroupSourceQueryFailed as exc:
                 # External result inconsistency
-                raise NodeSetExternalError("Unable to map a group " \
-                        "previously listed\n\tFailed command: %s" % exc)
+                raise NodeSetExternalError(
+                    "Unable to map a group "
+                    "previously listed\n\tFailed command: %s" % exc
+                )
 
         # For each NodeSetBase in self, find its groups.
         for node in self._iterbase():
@@ -1410,12 +1441,13 @@ class NodeSet(NodeSetBase):
                 key = "@%s:%s" % (groupsource, grp)
             else:
                 key = "@" + grp
-            result[key] = (NodeSet(nsb, resolver=self._resolver),
-                           self.intersection(nsb))
+            result[key] = (
+                NodeSet(nsb, resolver=self._resolver),
+                self.intersection(nsb),
+            )
         return result
 
-    def regroup(self, groupsource=None, autostep=None, overlap=False,
-                noprefix=False):
+    def regroup(self, groupsource=None, autostep=None, overlap=False, noprefix=False):
         """Regroup nodeset using node groups.
 
         Try to find fully matching node groups (within specified groupsource)
@@ -1492,7 +1524,7 @@ class NodeSet(NodeSetBase):
         foo[3-4]
         foo5
         """
-        assert(nbr > 0)
+        assert nbr > 0
 
         # We put the same number of element in each sub-nodeset.
         slice_size = len(self) // nbr
@@ -1501,7 +1533,7 @@ class NodeSet(NodeSetBase):
         begin = 0
         for i in range(0, min(nbr, len(self))):
             length = slice_size + int(i < left)
-            yield self[begin:begin + length]
+            yield self[begin : begin + length]
             begin += length
 
     def update(self, other):
@@ -1543,12 +1575,14 @@ def expand(pat):
     """
     return list(NodeSet(pat))
 
+
 def fold(pat):
     """
     Commodity function that clean dups and fold provided pattern with ranges
     and "/step" support.
     """
     return str(NodeSet(pat))
+
 
 def grouplist(namespace=None, resolver=None):
     """
@@ -1558,11 +1592,13 @@ def grouplist(namespace=None, resolver=None):
     """
     return ParsingEngine(resolver or RESOLVER_STD_GROUP).grouplist(namespace)
 
+
 def std_group_resolver():
     """
     Get the current resolver used for standard "@" group resolution.
     """
     return RESOLVER_STD_GROUP
+
 
 def set_std_group_resolver(new_resolver):
     """
@@ -1573,6 +1609,7 @@ def set_std_group_resolver(new_resolver):
     """
     global RESOLVER_STD_GROUP
     RESOLVER_STD_GROUP = new_resolver or _DEF_RESOLVER_STD_GROUP
+
 
 def set_std_group_resolver_config(groupsconf, illegal_chars=None):
     """
@@ -1586,6 +1623,5 @@ def set_std_group_resolver_config(groupsconf, illegal_chars=None):
     if groupsconf:
         if illegal_chars is None:
             illegal_chars = ILLEGAL_GROUP_CHARS
-        group_resolver = NodeUtils.GroupResolverConfig(groupsconf,
-                                                       illegal_chars)
+        group_resolver = NodeUtils.GroupResolverConfig(groupsconf, illegal_chars)
         set_std_group_resolver(group_resolver)

@@ -32,44 +32,52 @@ except ImportError:
 import errno
 import logging
 import os.path
-from resource import getrlimit, RLIMIT_NOFILE
 import signal
 import sys
+from resource import RLIMIT_NOFILE, getrlimit
 
 from ClusterShell.Engine.Engine import EngineNotSupportedError
-from ClusterShell.NodeUtils import GroupResolverConfigError
-from ClusterShell.NodeUtils import GroupResolverIllegalCharError
-from ClusterShell.NodeUtils import GroupResolverSourceError
-from ClusterShell.NodeUtils import GroupSourceError
-from ClusterShell.NodeUtils import GroupSourceNoUpcall
-from ClusterShell.NodeSet import NodeSetExternalError, NodeSetParseError
-from ClusterShell.NodeSet import RangeSetParseError
+from ClusterShell.NodeSet import (
+    NodeSetExternalError,
+    NodeSetParseError,
+    RangeSetParseError,
+)
+from ClusterShell.NodeUtils import (
+    GroupResolverConfigError,
+    GroupResolverIllegalCharError,
+    GroupResolverSourceError,
+    GroupSourceError,
+    GroupSourceNoUpcall,
+)
 from ClusterShell.Propagation import RouteResolvingError
 from ClusterShell.Topology import TopologyError
 from ClusterShell.Worker.EngineClient import EngineClientError
 from ClusterShell.Worker.Worker import WorkerError
 
-GENERIC_ERRORS = (configparser.Error,
-                  EngineNotSupportedError,
-                  EngineClientError,
-                  NodeSetExternalError,
-                  NodeSetParseError,
-                  RangeSetParseError,
-                  GroupResolverConfigError,
-                  GroupResolverIllegalCharError,
-                  GroupResolverSourceError,
-                  GroupSourceError,
-                  GroupSourceNoUpcall,
-                  RouteResolvingError,
-                  TopologyError,
-                  TypeError,
-                  IOError,
-                  OSError,
-                  KeyboardInterrupt,
-                  ValueError,
-                  WorkerError)
+GENERIC_ERRORS = (
+    configparser.Error,
+    EngineNotSupportedError,
+    EngineClientError,
+    NodeSetExternalError,
+    NodeSetParseError,
+    RangeSetParseError,
+    GroupResolverConfigError,
+    GroupResolverIllegalCharError,
+    GroupResolverSourceError,
+    GroupSourceError,
+    GroupSourceNoUpcall,
+    RouteResolvingError,
+    TopologyError,
+    TypeError,
+    IOError,
+    OSError,
+    KeyboardInterrupt,
+    ValueError,
+    WorkerError,
+)
 
 LOGGER = logging.getLogger(__name__)
+
 
 def handle_generic_error(excobj):
     """handle error given `excobj' generic script exception"""
@@ -86,10 +94,9 @@ def handle_generic_error(excobj):
     except (NodeSetParseError, RangeSetParseError) as exc:
         print("%s: Parse error: %s" % (prog, exc), file=sys.stderr)
     except GroupResolverIllegalCharError as exc:
-        print('%s: Illegal group character: "%s"' % (prog, exc),
-              file=sys.stderr)
+        print('%s: Illegal group character: "%s"' % (prog, exc), file=sys.stderr)
     except GroupResolverConfigError as exc:
-        print('%s: Group resolver error: %s' % (prog, exc), file=sys.stderr)
+        print("%s: Group resolver error: %s" % (prog, exc), file=sys.stderr)
     except GroupResolverSourceError as exc:
         print('%s: Unknown group source: "%s"' % (prog, exc), file=sys.stderr)
     except GroupSourceNoUpcall as exc:
@@ -110,9 +117,11 @@ def handle_generic_error(excobj):
         else:
             print("ERROR: %s" % exc, file=sys.stderr)
             if exc.errno == errno.EMFILE:
-                print("ERROR: maximum number of open file descriptors: "
-                      "soft=%d hard=%d" % getrlimit(RLIMIT_NOFILE),
-                      file=sys.stderr)
+                print(
+                    "ERROR: maximum number of open file descriptors: "
+                    "soft=%d hard=%d" % getrlimit(RLIMIT_NOFILE),
+                    file=sys.stderr,
+                )
     except KeyboardInterrupt as exc:
         return 128 + signal.SIGINT
     except:

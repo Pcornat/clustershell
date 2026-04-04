@@ -15,14 +15,18 @@ from ClusterShell.Defaults import DEFAULTS
 from ClusterShell.Event import EventHandler
 from ClusterShell.Task import *
 from ClusterShell.Worker.Exec import ExecWorker
-from ClusterShell.Worker.Worker import StreamWorker, WorkerSimple
-from ClusterShell.Worker.Worker import WorkerBadArgumentError
-from ClusterShell.Worker.Worker import FANOUT_UNLIMITED
+from ClusterShell.Worker.Worker import (
+    FANOUT_UNLIMITED,
+    StreamWorker,
+    WorkerBadArgumentError,
+    WorkerSimple,
+)
 
 
 def _test_print_debug(task, s):
     # Use custom task info (prefix 'user_' is recommended)
     task.set_info("user_print_debug_last", s)
+
 
 class TaskLocalMixin(object):
     """Mixin test case class: should be overridden and used in multiple
@@ -78,7 +82,7 @@ class TaskLocalMixin(object):
         hn = socket.gethostname()
         for i in range(0, 100):
             t_hn = workers[i].read().splitlines()[0]
-            self.assertEqual(t_hn.decode('utf-8'), hn)
+            self.assertEqual(t_hn.decode("utf-8"), hn)
 
     def testHugeOutputCommand(self):
         task = task_self()
@@ -160,7 +164,7 @@ class TaskLocalMixin(object):
         task = task_self()
         task.shell("true", key="empty")
         task.resume()
-        self.assertEqual(task.key_buffer("empty"), b'')
+        self.assertEqual(task.key_buffer("empty"), b"")
         for buf, keys in task.iter_buffers():
             self.assertTrue(False)
 
@@ -168,7 +172,7 @@ class TaskLocalMixin(object):
         task = task_self()
         task.shell("true", key="empty")
         task.resume()
-        self.assertEqual(task.key_error("empty"), b'')
+        self.assertEqual(task.key_error("empty"), b"")
         for buf, keys in task.iter_errors():
             self.assertTrue(False)
 
@@ -179,8 +183,8 @@ class TaskLocalMixin(object):
         # task.key_retcode raises KeyError
         self.assertRaises(KeyError, task.key_retcode, "not_known")
         # unlike task.key_buffer/error
-        self.assertEqual(task.key_buffer("not_known"), b'')
-        self.assertEqual(task.key_error("not_known"), b'')
+        self.assertEqual(task.key_buffer("not_known"), b"")
+        self.assertEqual(task.key_error("not_known"), b"")
 
     def testLocalSingleLineBuffers(self):
         task = task_self()
@@ -268,28 +272,28 @@ class TaskLocalMixin(object):
         task.resume()
 
         # test key_retcode(key)
-        self.assertEqual(task.key_retcode("worker2"), 2) # single
-        self.assertEqual(task.key_retcode("worker4"), 4) # multiple
-        self.assertRaises(KeyError, task.key_retcode, "worker9") # error
+        self.assertEqual(task.key_retcode("worker2"), 2)  # single
+        self.assertEqual(task.key_retcode("worker4"), 4)  # multiple
+        self.assertRaises(KeyError, task.key_retcode, "worker9")  # error
 
         cnt = 6
         for rc, keys in task.iter_retcodes():
             cnt -= 1
             if rc == 0:
                 self.assertEqual(len(keys), 1)
-                self.assertEqual(keys[0], "worker0" )
+                self.assertEqual(keys[0], "worker0")
             elif rc == 1:
                 self.assertEqual(len(keys), 3)
                 self.assertTrue(keys[0] in ("worker1", "worker1bis", "worker4"))
             elif rc == 2:
                 self.assertEqual(len(keys), 1)
-                self.assertEqual(keys[0], "worker2" )
+                self.assertEqual(keys[0], "worker2")
             elif rc == 3:
                 self.assertEqual(len(keys), 2)
                 self.assertTrue(keys[0] in ("worker3", "worker3bis"))
             elif rc == 4:
                 self.assertEqual(len(keys), 1)
-                self.assertEqual(keys[0], "worker4" )
+                self.assertEqual(keys[0], "worker4")
             elif rc == 5:
                 self.assertEqual(len(keys), 2)
                 self.assertTrue(keys[0] in ("worker5", "worker5bis"))
@@ -424,7 +428,9 @@ class TaskLocalMixin(object):
 
     def testEscape(self):
         task = task_self()
-        worker = task.shell(r"export CSTEST=foobar; /bin/echo \$CSTEST | sed 's/\ foo/bar/'")
+        worker = task.shell(
+            r"export CSTEST=foobar; /bin/echo \$CSTEST | sed 's/\ foo/bar/'"
+        )
         # execute
         task.resume()
         # read result
@@ -432,7 +438,9 @@ class TaskLocalMixin(object):
 
     def testEscape2(self):
         task = task_self()
-        worker = task.shell(r"export CSTEST=foobar; /bin/echo $CSTEST | sed 's/\ foo/bar/'")
+        worker = task.shell(
+            r"export CSTEST=foobar; /bin/echo $CSTEST | sed 's/\ foo/bar/'"
+        )
         # execute
         task.resume()
         # read result
@@ -443,12 +451,13 @@ class TaskLocalMixin(object):
         class StartHandler(EventHandler):
             def __init__(self, test):
                 self.test = test
+
             def ev_start(self, worker):
                 if len(streams) == 2:
                     for streamd in streams:
                         for name, stream in streamd.items():
-                            self.test.assertTrue(name in ['stdin', 'stdout', 'stderr'])
-                            if name == 'stdin':
+                            self.test.assertTrue(name in ["stdin", "stdout", "stderr"])
+                            if name == "stdin":
                                 self.test.assertTrue(stream.writable())
                                 self.test.assertFalse(stream.readable())
                             else:
@@ -500,8 +509,8 @@ class TaskLocalMixin(object):
         w1 = task.shell("/usr/bin/printf 'foo bar\n' 1>&2", key="foobar", stderr=True)
         w2 = task.shell("/usr/bin/printf 'foo\nbar\n' 1>&2", key="foobar2", stderr=True)
         task.resume()
-        self.assertEqual(w1.error(), b'foo bar')
-        self.assertEqual(w2.error(), b'foo\nbar')
+        self.assertEqual(w1.error(), b"foo bar")
+        self.assertEqual(w2.error(), b"foo\nbar")
 
     def testLocalErrorBuffers(self):
         task = task_self()
@@ -588,15 +597,23 @@ class TaskLocalMixin(object):
         rfd, wfd = os.pipe()
         os.write(wfd, b"test\n")
         os.close(wfd)
-        worker = WorkerSimple(os.fdopen(rfd), None, None, "pipe", None,
-                              stderr=True, timeout=-1, autoclose=False,
-                              closefd=False)
+        worker = WorkerSimple(
+            os.fdopen(rfd),
+            None,
+            None,
+            "pipe",
+            None,
+            stderr=True,
+            timeout=-1,
+            autoclose=False,
+            closefd=False,
+        )
         self.assertEqual(worker.reader_fileno(), rfd)
         task.schedule(worker)
         task.resume()
-        self.assertEqual(task.key_buffer("pipe"), b'test')
-        dummy = os.fstat(rfd) # just to check that rfd is still valid here
-                              # (worker keeps a reference of file object)
+        self.assertEqual(task.key_buffer("pipe"), b"test")
+        dummy = os.fstat(rfd)  # just to check that rfd is still valid here
+        # (worker keeps a reference of file object)
         # rfd will be closed when associated file is released
 
     def testWorkerSimplePipeStdErr(self):
@@ -605,26 +622,42 @@ class TaskLocalMixin(object):
         os.write(wfd, b"test\n")
         os.close(wfd)
         # be careful, stderr is arg #3
-        worker = WorkerSimple(None, None, os.fdopen(rfd), "pipe", None,
-                              stderr=True, timeout=-1, autoclose=False,
-                              closefd=False)
+        worker = WorkerSimple(
+            None,
+            None,
+            os.fdopen(rfd),
+            "pipe",
+            None,
+            stderr=True,
+            timeout=-1,
+            autoclose=False,
+            closefd=False,
+        )
         self.assertEqual(worker.error_fileno(), rfd)
         task.schedule(worker)
         task.resume()
-        self.assertEqual(task.key_error("pipe"), b'test')
-        dummy = os.fstat(rfd) # just to check that rfd is still valid here
+        self.assertEqual(task.key_error("pipe"), b"test")
+        dummy = os.fstat(rfd)  # just to check that rfd is still valid here
         # rfd will be closed when associated file is released
 
     def testWorkerSimplePipeStdin(self):
         task = task_self()
         rfd, wfd = os.pipe()
         # be careful, stdin is arg #2
-        worker = WorkerSimple(None, os.fdopen(wfd, "w"), None, "pipe", None,
-                              stderr=True, timeout=-1, autoclose=False,
-                              closefd=False)
+        worker = WorkerSimple(
+            None,
+            os.fdopen(wfd, "w"),
+            None,
+            "pipe",
+            None,
+            stderr=True,
+            timeout=-1,
+            autoclose=False,
+            closefd=False,
+        )
         self.assertEqual(worker.writer_fileno(), wfd)
         worker.write(b"write to stdin test\n")
-        worker.set_write_eof() # close stream after write!
+        worker.set_write_eof()  # close stream after write!
         task.schedule(worker)
         task.resume()
         self.assertEqual(os.read(rfd, 1024), b"write to stdin test\n")
@@ -633,7 +666,7 @@ class TaskLocalMixin(object):
 
     # FIXME: reconsider this kind of test (which now must fail) especially
     #        when using epoll engine, as soon as testsuite is improved (#95).
-    #def testWorkerSimpleFile(self):
+    # def testWorkerSimpleFile(self):
     #    """test WorkerSimple (file)"""
     #    task = task_self()
     #    # use tempfile
@@ -667,6 +700,7 @@ class TaskLocalMixin(object):
             def ev_read(self, worker, node, sname, msg):
                 pid = int(worker.current_msg)
                 os.kill(pid, signal.SIGTERM)
+
         task = task_self()
         wrk = task.shell("echo $$; /bin/sleep 2", handler=TestSignalHandler())
         task.resume()
@@ -677,11 +711,13 @@ class TaskLocalMixin(object):
             def __init__(self, target_worker=None):
                 self.target_worker = target_worker
                 self.counter = 0
+
             def ev_read(self, worker, node, sname, msg):
                 self.counter += 1
                 if self.counter == 100:
                     worker.write(b"another thing to read\n")
                     worker.set_write_eof()
+
             def ev_timer(self, timer):
                 self.target_worker.write(b"something to read\n" * 300)
 
@@ -713,6 +749,7 @@ class TaskLocalMixin(object):
         class TestFanoutChanger(EventHandler):
             def ev_timer(self, timer):
                 task_self().set_info("fanout", 1)
+
         timer = task.timer(2.0, handler=TestFanoutChanger())
         for i in range(0, 10):
             worker = task.shell("sleep 0.5")
@@ -721,7 +758,6 @@ class TaskLocalMixin(object):
     def testLocalWorkerFanout(self):
 
         class TestRunCountChecker(EventHandler):
-
             def __init__(self):
                 self.workers = []
                 self.max_run_cnt = 0
@@ -730,8 +766,9 @@ class TaskLocalMixin(object):
                 self.workers.append(worker)
 
             def ev_read(self, worker, node, sname, msg):
-                run_cnt = sum(e.registered for w in self.workers
-                              for e in w._engine_clients())
+                run_cnt = sum(
+                    e.registered for w in self.workers for e in w._engine_clients()
+                )
                 self.max_run_cnt = max(self.max_run_cnt, run_cnt)
 
         task = task_self()
@@ -749,7 +786,7 @@ class TaskLocalMixin(object):
 
         # TEST 1bis - default worker fanout with ExecWorker
         eh = TestRunCountChecker()
-        worker = ExecWorker(nodes='foo[0-9]', handler=eh, command='echo bar')
+        worker = ExecWorker(nodes="foo[0-9]", handler=eh, command="echo bar")
         task.schedule(worker)
         task.resume()
         # Engine fanout should be enforced
@@ -765,7 +802,7 @@ class TaskLocalMixin(object):
 
         # TEST 2bis - create ExecWorker with multiple clients [larger fanout]
         eh = TestRunCountChecker()
-        worker = ExecWorker(nodes='foo[0-9]', handler=eh, command='echo bar')
+        worker = ExecWorker(nodes="foo[0-9]", handler=eh, command="echo bar")
         worker._fanout = 5
         task.schedule(worker)
         task.resume()
@@ -774,7 +811,7 @@ class TaskLocalMixin(object):
 
         # TEST 2ter - create ExecWorker with multiple clients [smaller fanout]
         eh = TestRunCountChecker()
-        worker = ExecWorker(nodes='foo[0-9]', handler=eh, command='echo bar')
+        worker = ExecWorker(nodes="foo[0-9]", handler=eh, command="echo bar")
         worker._fanout = 1
         task.schedule(worker)
         task.resume()
@@ -792,7 +829,7 @@ class TaskLocalMixin(object):
 
         # TEST 4bis - create ExecWorker with unlimited fanout
         eh = TestRunCountChecker()
-        worker = ExecWorker(nodes='foo[0-9]', handler=eh, command='echo bar')
+        worker = ExecWorker(nodes="foo[0-9]", handler=eh, command="echo bar")
         worker._fanout = FANOUT_UNLIMITED
         task.schedule(worker)
         task.resume()
@@ -800,10 +837,10 @@ class TaskLocalMixin(object):
         self.assertEqual(eh.max_run_cnt, 10)
 
     def testPopenBadArgumentOption(self):
-	    # Check code < 1.4 compatibility
+        # Check code < 1.4 compatibility
         self.assertRaises(WorkerBadArgumentError, WorkerPopen, None, None)
-	    # As of 1.4, ValueError is raised for missing parameter
-        self.assertRaises(ValueError, WorkerPopen, None, None) # 1.4+
+        # As of 1.4, ValueError is raised for missing parameter
+        self.assertRaises(ValueError, WorkerPopen, None, None)  # 1.4+
 
     def testWorkerAbort(self):
         task = task_self()
@@ -813,6 +850,7 @@ class TaskLocalMixin(object):
                 EventHandler.__init__(self)
                 self.ext_worker = worker
                 self.testtimer = False
+
             def ev_timer(self, timer):
                 self.ext_worker.abort()
                 self.ext_worker.abort()  # safe but no effect
@@ -837,6 +875,7 @@ class TaskLocalMixin(object):
         class TestKBI(EventHandler):
             def ev_read(self, worker, node, sname, msg):
                 raise KeyboardInterrupt
+
         task = task_self()
         ok = False
         try:
@@ -848,7 +887,7 @@ class TaskLocalMixin(object):
             #
             # cannot assert on task.iter_retcodes() as we are not sure in
             # what order the interpreter will proceed
-            #self.assertEqual(len(list(task.iter_retcodes())), 1)
+            # self.assertEqual(len(list(task.iter_retcodes())), 1)
             self.assertEqual(len(list(task.iter_buffers())), 1)
             # hard to test without really checking the number of clients of engine
             self.assertEqual(len(task._engine._clients), 0)
@@ -885,20 +924,20 @@ class TaskLocalMixin(object):
     def testTaskEngineUserSelection(self):
         task_terminate()
         try:
-            DEFAULTS.engine = 'select'
-            self.assertEqual(task_self().info('engine'), 'select')
+            DEFAULTS.engine = "select"
+            self.assertEqual(task_self().info("engine"), "select")
             task_terminate()
         finally:
-            DEFAULTS.engine = 'auto'
+            DEFAULTS.engine = "auto"
 
     def testTaskEngineWrongUserSelection(self):
         try:
             task_terminate()
-            DEFAULTS.engine = 'foobar'
+            DEFAULTS.engine = "foobar"
             # Check for KeyError in case of wrong engine request
             self.assertRaises(KeyError, task_self)
         finally:
-            DEFAULTS.engine = 'auto'
+            DEFAULTS.engine = "auto"
 
         task_terminate()
 
@@ -918,7 +957,7 @@ class TaskLocalMixin(object):
         task_wait()
 
         # verify that the worker has completed
-        self.assertEqual(worker.read(), match.encode('ascii'))
+        self.assertEqual(worker.read(), match.encode("ascii"))
 
         # stop task
         task.abort()
@@ -939,7 +978,7 @@ class TaskLocalMixin(object):
         task_wait()
 
         # verify that the worker has completed
-        self.assertEqual(worker.read(), match.encode('ascii'))
+        self.assertEqual(worker.read(), match.encode("ascii"))
 
         # stop task
         task.abort()
@@ -960,7 +999,7 @@ class TaskLocalMixin(object):
         task_wait()
 
         # verify that the worker has completed
-        self.assertEqual(worker.read(), match.encode('ascii'))
+        self.assertEqual(worker.read(), match.encode("ascii"))
 
         # stop task
         task.abort()
@@ -971,8 +1010,10 @@ class TaskLocalMixin(object):
             def __init__(self):
                 self.pickup_count = 0
                 self.hup_count = 0
+
             def ev_pickup(self, worker, node):
                 self.pickup_count += 1
+
             def ev_hup(self, worker, node, rc):
                 self.hup_count += 1
 
@@ -991,9 +1032,11 @@ class TaskLocalMixin(object):
 
             # Test #2: fanout change during run
             chdlr = PickupHupCounter()
+
             class TestFanoutChanger(EventHandler):
                 def ev_timer(self, timer):
                     task_self().set_info("fanout", 1)
+
             timer = task.timer(2.0, handler=TestFanoutChanger())
             for i in range(0, 10):
                 task.shell("sleep 0.5", handler=chdlr)
@@ -1028,8 +1071,9 @@ class TaskLocalMixin(object):
                 worker.task.schedule(self.worker2)
 
         worker2 = StreamWorker(handler=None)
-        worker1 = ExecWorker(nodes='localhost', handler=TestH(worker2),
-                             command="echo ok")
+        worker1 = ExecWorker(
+            nodes="localhost", handler=TestH(worker2), command="echo ok"
+        )
 
         # Create pipe stream
         rfd1, wfd1 = os.pipe()
@@ -1043,8 +1087,8 @@ class TaskLocalMixin(object):
         task_self().schedule(worker1)
         task_self().run()
 
-        self.assertEqual(worker1.node_buffer('localhost'), b"ok")
-        self.assertEqual(worker1.node_retcode('localhost'), 0)
+        self.assertEqual(worker1.node_buffer("localhost"), b"ok")
+        self.assertEqual(worker1.node_retcode("localhost"), 0)
         self.assertEqual(worker2.read(sname="pipe1"), b"test")
         self.assertEqual(task_self().max_retcode(), 0)
 

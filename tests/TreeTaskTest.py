@@ -4,8 +4,8 @@ Unit test for ClusterShell.Task in tree mode
 
 import logging
 import os
-from textwrap import dedent
 import unittest
+from textwrap import dedent
 
 from ClusterShell.Propagation import RouteResolvingError
 from ClusterShell.Task import task_self
@@ -27,16 +27,26 @@ class TreeTaskTest(unittest.TestCase):
     def test_shell_auto_tree_dummy(self):
         """test task shell auto tree"""
         # initialize a dummy topology.conf file
-        topofile = make_temp_file(dedent("""
+        topofile = make_temp_file(
+            dedent(
+                """
                         [Main]
                         %s: dummy-gw
-                        dummy-gw: dummy-node"""% HOSTNAME).encode())
+                        dummy-gw: dummy-node"""
+                % HOSTNAME
+            ).encode()
+        )
         task = task_self()
         task.set_default("auto_tree", True)
         task.TOPOLOGY_CONFIGS = [topofile.name]
 
-        self.assertRaises(RouteResolvingError, task.run, "/bin/hostname",
-                          nodes="dummy-node", stderr=True)
+        self.assertRaises(
+            RouteResolvingError,
+            task.run,
+            "/bin/hostname",
+            nodes="dummy-node",
+            stderr=True,
+        )
         self.assertEqual(task.max_retcode(), None)
 
     def test_shell_auto_tree_noconf(self):
@@ -52,12 +62,16 @@ class TreeTaskTest(unittest.TestCase):
     def test_shell_auto_tree_error(self):
         """test task shell auto tree [TopologyError]"""
         # initialize an erroneous topology.conf file
-        topofile = make_temp_file(dedent("""
+        topofile = make_temp_file(
+            dedent(
+                """
                         [Main]
                         %s: dummy-gw
-                        dummy-gw: dummy-gw"""% HOSTNAME).encode())
+                        dummy-gw: dummy-gw"""
+                % HOSTNAME
+            ).encode()
+        )
         task = task_self()
         task.set_default("auto_tree", True)
         task.TOPOLOGY_CONFIGS = [topofile.name]
-        self.assertRaises(TopologyError, task.run, "/bin/hostname",
-                          nodes="dummy-node")
+        self.assertRaises(TopologyError, task.run, "/bin/hostname", nodes="dummy-node")

@@ -4,23 +4,20 @@
 """Unit test for ClusterShell.Defaults"""
 
 import os
-import sys
 import shutil
-
-from textwrap import dedent
+import sys
 import unittest
-
-from .TLib import make_temp_file, make_temp_dir
+from textwrap import dedent
 
 from ClusterShell.Defaults import Defaults, _task_print_debug
-
 from ClusterShell.Task import task_self, task_terminate
 from ClusterShell.Worker.Pdsh import WorkerPdsh
 from ClusterShell.Worker.Ssh import WorkerSsh
 
+from .TLib import make_temp_dir, make_temp_file
+
 
 class Defaults000NoConfigTest(unittest.TestCase):
-
     def setUp(self):
         """setup test - initialize Defaults instance"""
         self.defaults = Defaults([])
@@ -33,11 +30,11 @@ class Defaults000NoConfigTest(unittest.TestCase):
         self.assertFalse(self.defaults.stderr)
         self.assertTrue(self.defaults.stdout_msgtree)
         self.assertTrue(self.defaults.stderr_msgtree)
-        self.assertEqual(self.defaults.engine, 'auto')
+        self.assertEqual(self.defaults.engine, "auto")
         self.assertEqual(self.defaults.port_qlimit, 100)
         self.assertTrue(self.defaults.auto_tree)
-        self.assertEqual(self.defaults.local_workername, 'exec')
-        self.assertEqual(self.defaults.distant_workername, 'ssh')
+        self.assertEqual(self.defaults.local_workername, "exec")
+        self.assertEqual(self.defaults.distant_workername, "ssh")
         # task_info
         self.assertFalse(self.defaults.debug)
         self.assertEqual(self.defaults.print_debug, _task_print_debug)
@@ -59,16 +56,16 @@ class Defaults000NoConfigTest(unittest.TestCase):
         self.assertFalse(self.defaults.stdout_msgtree)
         self.defaults.stderr_msgtree = False
         self.assertFalse(self.defaults.stderr_msgtree)
-        self.defaults.engine = 'select'
-        self.assertEqual(self.defaults.engine, 'select')
+        self.defaults.engine = "select"
+        self.assertEqual(self.defaults.engine, "select")
         self.defaults.port_qlimit = 1000
         self.assertEqual(self.defaults.port_qlimit, 1000)
         self.defaults.auto_tree = False
         self.assertFalse(self.defaults.auto_tree)
-        self.defaults.local_workername = 'none'
-        self.assertEqual(self.defaults.local_workername, 'none')
-        self.defaults.distant_workername = 'pdsh'
-        self.assertEqual(self.defaults.distant_workername, 'pdsh')
+        self.defaults.local_workername = "none"
+        self.assertEqual(self.defaults.local_workername, "none")
+        self.defaults.distant_workername = "pdsh"
+        self.assertEqual(self.defaults.distant_workername, "pdsh")
         # task_info
         self.defaults.debug = True
         self.assertTrue(self.defaults.debug)
@@ -90,11 +87,11 @@ class Defaults000NoConfigTest(unittest.TestCase):
 
     def test_004_workerclass(self):
         """test Defaults workerclass"""
-        self.defaults.distant_workername = 'pdsh'
+        self.defaults.distant_workername = "pdsh"
         task_terminate()
         task = task_self(self.defaults)
         self.assertTrue(task.default("distant_worker") is WorkerPdsh)
-        self.defaults.distant_workername = 'ssh'
+        self.defaults.distant_workername = "ssh"
         self.assertTrue(task.default("distant_worker") is WorkerPdsh)
         task_terminate()
 
@@ -103,39 +100,40 @@ class Defaults000NoConfigTest(unittest.TestCase):
         task_terminate()
 
         tdir = make_temp_dir()
-        modfile = open(os.path.join(tdir.name, 'OutOfTree.py'), 'w')
-        modfile.write(dedent("""
+        modfile = open(os.path.join(tdir.name, "OutOfTree.py"), "w")
+        modfile.write(
+            dedent("""
             class OutOfTreeWorker(object):
                 pass
-            WORKER_CLASS = OutOfTreeWorker"""))
+            WORKER_CLASS = OutOfTreeWorker""")
+        )
         modfile.flush()
         modfile.close()
         sys.path.append(tdir.name)
-        self.defaults.distant_workername = 'OutOfTree'
+        self.defaults.distant_workername = "OutOfTree"
         task = task_self(self.defaults)
-        self.assertEqual(task.default("distant_worker").__name__, 'OutOfTreeWorker')
+        self.assertEqual(task.default("distant_worker").__name__, "OutOfTreeWorker")
         task_terminate()
         tdir.cleanup()
 
     def test_005_misc_value_errors(self):
         """test Defaults misc value errors"""
         task_terminate()
-        self.defaults.local_workername = 'dummy1'
+        self.defaults.local_workername = "dummy1"
         self.assertRaises(ImportError, task_self, self.defaults)
-        self.defaults.local_workername = 'exec'
-        self.defaults.distant_workername = 'dummy2'
+        self.defaults.local_workername = "exec"
+        self.defaults.distant_workername = "dummy2"
         self.assertRaises(ImportError, task_self, self.defaults)
-        self.defaults.distant_workername = 'ssh'
-        self.defaults.engine = 'unknown'
+        self.defaults.distant_workername = "ssh"
+        self.defaults.engine = "unknown"
         self.assertRaises(KeyError, task_self, self.defaults)
-        self.defaults.engine = 'auto'
+        self.defaults.engine = "auto"
         task = task_self(self.defaults)
-        self.assertEqual(task.default('engine'), 'auto')
+        self.assertEqual(task.default("engine"), "auto")
         task_terminate()
 
 
 class Defaults001ConfigTest(unittest.TestCase):
-
     def setUp(self):
         self.defaults = None
 
@@ -146,11 +144,11 @@ class Defaults001ConfigTest(unittest.TestCase):
         self.assertFalse(self.defaults.stderr)
         self.assertTrue(self.defaults.stdout_msgtree)
         self.assertTrue(self.defaults.stderr_msgtree)
-        self.assertEqual(self.defaults.engine, 'auto')
+        self.assertEqual(self.defaults.engine, "auto")
         self.assertEqual(self.defaults.port_qlimit, 100)
         self.assertTrue(self.defaults.auto_tree)
-        self.assertEqual(self.defaults.local_workername, 'exec')
-        self.assertEqual(self.defaults.distant_workername, 'ssh')
+        self.assertEqual(self.defaults.local_workername, "exec")
+        self.assertEqual(self.defaults.distant_workername, "ssh")
         # task_info
         self.assertFalse(self.defaults.debug)
         self.assertEqual(self.defaults.print_debug, _task_print_debug)
@@ -162,15 +160,16 @@ class Defaults001ConfigTest(unittest.TestCase):
 
     def test_000_empty(self):
         """test Defaults config file (empty)"""
-        conf_test = make_temp_file(b'')
+        conf_test = make_temp_file(b"")
         self.defaults = Defaults(filenames=[conf_test.name])
         self._assert_default_values()
 
     def test_001_defaults(self):
         """test Defaults config file (defaults)"""
-        conf_test = make_temp_file(dedent("""
+        conf_test = make_temp_file(
+            dedent("""
             [nodeset]
-            fold_axis: 
+            fold_axis:
 
             [task.default]
             stderr: false
@@ -187,13 +186,15 @@ class Defaults001ConfigTest(unittest.TestCase):
             fanout: 64
             grooming_delay: 0.25
             connect_timeout: 10
-            command_timeout: 0""").encode('ascii'))
+            command_timeout: 0""").encode("ascii")
+        )
         self.defaults = Defaults(filenames=[conf_test.name])
         self._assert_default_values()
 
     def test_002_changed(self):
         """test Defaults config file (changed)"""
-        conf_test = make_temp_file(dedent("""
+        conf_test = make_temp_file(
+            dedent("""
             [nodeset]
             fold_axis: -1
 
@@ -212,7 +213,8 @@ class Defaults001ConfigTest(unittest.TestCase):
             fanout: 256
             grooming_delay: 0.5
             connect_timeout: 12.5
-            command_timeout: 30.5""").encode('ascii'))
+            command_timeout: 30.5""").encode("ascii")
+        )
         self.defaults = Defaults(filenames=[conf_test.name])
         # nodeset
         self.assertEqual(self.defaults.fold_axis, (-1,))
@@ -220,11 +222,11 @@ class Defaults001ConfigTest(unittest.TestCase):
         self.assertTrue(self.defaults.stderr)
         self.assertFalse(self.defaults.stdout_msgtree)
         self.assertFalse(self.defaults.stderr_msgtree)
-        self.assertEqual(self.defaults.engine, 'select')
-        self.assertEqual(self.defaults.port_qlimit, 1000) # 1.8 compat
+        self.assertEqual(self.defaults.engine, "select")
+        self.assertEqual(self.defaults.port_qlimit, 1000)  # 1.8 compat
         self.assertFalse(self.defaults.auto_tree)
-        self.assertEqual(self.defaults.local_workername, 'none')
-        self.assertEqual(self.defaults.distant_workername, 'pdsh')
+        self.assertEqual(self.defaults.local_workername, "none")
+        self.assertEqual(self.defaults.distant_workername, "pdsh")
         # task_info
         self.assertTrue(self.defaults.debug)
         self.assertEqual(self.defaults.fanout, 256)
@@ -233,7 +235,8 @@ class Defaults001ConfigTest(unittest.TestCase):
 
     def test_003_engine(self):
         """test Defaults config file (engine section)"""
-        conf_test = make_temp_file(dedent("""
+        conf_test = make_temp_file(
+            dedent("""
             [nodeset]
             fold_axis: -1
 
@@ -254,7 +257,8 @@ class Defaults001ConfigTest(unittest.TestCase):
             command_timeout: 30.5
 
             [engine]
-            port_qlimit: 1000""").encode('ascii'))
+            port_qlimit: 1000""").encode("ascii")
+        )
         self.defaults = Defaults(filenames=[conf_test.name])
         # nodeset
         self.assertEqual(self.defaults.fold_axis, (-1,))
@@ -262,11 +266,11 @@ class Defaults001ConfigTest(unittest.TestCase):
         self.assertTrue(self.defaults.stderr)
         self.assertFalse(self.defaults.stdout_msgtree)
         self.assertFalse(self.defaults.stderr_msgtree)
-        self.assertEqual(self.defaults.engine, 'select')
+        self.assertEqual(self.defaults.engine, "select")
         self.assertEqual(self.defaults.port_qlimit, 1000)
         self.assertFalse(self.defaults.auto_tree)
-        self.assertEqual(self.defaults.local_workername, 'none')
-        self.assertEqual(self.defaults.distant_workername, 'pdsh')
+        self.assertEqual(self.defaults.local_workername, "none")
+        self.assertEqual(self.defaults.distant_workername, "pdsh")
         # task_info
         self.assertTrue(self.defaults.debug)
         self.assertEqual(self.defaults.fanout, 256)

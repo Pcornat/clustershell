@@ -46,7 +46,6 @@ import logging
 
 from ClusterShell.NodeSet import NodeSet
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -61,6 +60,7 @@ class TopologyNodeGroup(object):
     Contains a nodeset, with parent-children relationships with other
     instances.
     """
+
     def __init__(self, nodeset=None):
         """initialize a new TopologyNodeGroup instance."""
         # Base nodeset
@@ -73,33 +73,33 @@ class TopologyNodeGroup(object):
         # provided for convenience
         self._children_ns = None
 
-    def printable_subtree(self, prefix=''):
+    def printable_subtree(self, prefix=""):
         """recursive method that returns a printable version the subtree from
         the current node with a nice presentation
         """
-        res = ''
+        res = ""
         # For now, it is ok to use a recursive method here as we consider that
         # tree depth is relatively small.
         if self.parent is None:
             # root
-            res = '%s\n' % str(self.nodeset)
+            res = "%s\n" % str(self.nodeset)
         elif self.parent.parent is None:
             # first level
             if not self._is_last():
-                res = '|- %s\n' % str(self.nodeset)
+                res = "|- %s\n" % str(self.nodeset)
             else:
-                res = '`- %s\n' % str(self.nodeset)
+                res = "`- %s\n" % str(self.nodeset)
         else:
             # deepest levels...
             if not self.parent._is_last():
-                prefix += '|  '
+                prefix += "|  "
             else:
                 # fix last line
-                prefix += '   '
+                prefix += "   "
             if not self._is_last():
-                res = '%s|- %s\n' % (prefix, str(self.nodeset))
+                res = "%s|- %s\n" % (prefix, str(self.nodeset))
             else:
-                res = '%s`- %s\n' % (prefix, str(self.nodeset))
+                res = "%s`- %s\n" % (prefix, str(self.nodeset))
         # perform recursive calls to print out every node
         for child in self._children:
             res += child.printable_subtree(prefix)
@@ -162,15 +162,17 @@ class TopologyNodeGroup(object):
 
     def __str__(self):
         """printable representation of the nodegroup"""
-        return '<TopologyNodeGroup (%s)>' % str(self.nodeset)
+        return "<TopologyNodeGroup (%s)>" % str(self.nodeset)
 
 
 class TopologyTree(object):
     """represent a simplified network topology as a tree of machines to use to
     connect to other ones
     """
+
     class TreeIterator(object):
         """efficient tool for tree-traversal"""
+
         def __init__(self, tree):
             """we do simply manage a stack with the remaining nodes"""
             self._stack = [tree.root]
@@ -211,7 +213,7 @@ class TopologyTree(object):
     def __str__(self):
         """printable representation of the tree"""
         if self.root is None:
-            return '<TopologyTree instance (empty)>'
+            return "<TopologyTree instance (empty)>"
         return self.root.printable_subtree()
 
     def find_nodegroup(self, node):
@@ -219,21 +221,24 @@ class TopologyTree(object):
         for group in self.groups:
             if node in group.nodeset:
                 return group
-        raise TopologyError('TopologyNodeGroup not found for node %s' % node)
+        raise TopologyError("TopologyNodeGroup not found for node %s" % node)
 
     def inner_node_count(self):
         """helper to get inner node count (root and gateway nodes)"""
-        return sum(len(group.nodeset) for group in self.groups
-                   if group.children_len() > 0)
+        return sum(
+            len(group.nodeset) for group in self.groups if group.children_len() > 0
+        )
 
     def leaf_node_count(self):
         """helper to get leaf node count"""
-        return sum(len(group.nodeset) for group in self.groups
-                   if group.children_len() == 0)
+        return sum(
+            len(group.nodeset) for group in self.groups if group.children_len() == 0
+        )
 
 
 class TopologyRoute(object):
     """A single route between two nodesets"""
+
     def __init__(self, src_ns, dst_ns):
         """both src_ns and dst_ns are expected to be non-empty NodeSet
         instances
@@ -241,8 +246,7 @@ class TopologyRoute(object):
         self.src = src_ns
         self.dst = dst_ns
         if len(src_ns & dst_ns) != 0:
-            raise TopologyError(
-                'Source and destination nodesets overlap')
+            raise TopologyError("Source and destination nodesets overlap")
 
     def dest(self, nodeset=None):
         """get the route's destination. The optional argument serves for
@@ -256,13 +260,14 @@ class TopologyRoute(object):
 
     def __str__(self):
         """printable representation"""
-        return '%s -> %s' % (str(self.src), str(self.dst))
+        return "%s -> %s" % (str(self.src), str(self.dst))
 
 
 class TopologyRoutingTable(object):
     """This class provides a convenient way to store and manage topology
     routes
     """
+
     def __init__(self):
         """Initialize a new TopologyRoutingTable instance."""
         self._routes = []
@@ -274,11 +279,11 @@ class TopologyRoutingTable(object):
         TopologyRoute instance
         """
         if self._introduce_circular_reference(route):
-            raise TopologyError(
-                'Loop detected! Cannot add route %s' % str(route))
+            raise TopologyError("Loop detected! Cannot add route %s" % str(route))
         if self._introduce_convergent_paths(route):
             raise TopologyError(
-                'Convergent path detected! Cannot add route %s' % str(route))
+                "Convergent path detected! Cannot add route %s" % str(route)
+            )
 
         self._routes.append(route)
 
@@ -291,16 +296,18 @@ class TopologyRoutingTable(object):
         Argument src_ns is expected to be a NodeSet instance. Result is
         returned as a NodeSet instance
         """
-        next_hop = NodeSet.fromlist(dst for dst in [route.dest(src_ns)
-                                                    for route in self._routes]
-                                    if dst is not None)
+        next_hop = NodeSet.fromlist(
+            dst
+            for dst in [route.dest(src_ns) for route in self._routes]
+            if dst is not None
+        )
         if len(next_hop) == 0:
             return None
         return next_hop
 
     def __str__(self):
         """printable representation"""
-        return '\n'.join([str(route) for route in self._routes])
+        return "\n".join([str(route) for route in self._routes])
 
     def __iter__(self):
         """return an iterator over the list of routes"""
@@ -329,8 +336,7 @@ class TopologyRoutingTable(object):
             if route.dst < known_route.src:
                 return True
             # two different nodegroups cannot point to the same one
-            if len(route.dst & known_route.dst) != 0 \
-               and route.src != known_route.src:
+            if len(route.dst & known_route.dst) != 0 and route.src != known_route.src:
                 return True
         return False
 
@@ -339,11 +345,12 @@ class TopologyGraph(object):
     """represent a complete network topology by storing every "can reach"
     relations between nodes.
     """
+
     def __init__(self):
         """initialize a new TopologyGraph instance."""
         self._routing = TopologyRoutingTable()
         self._nodegroups = {}
-        self._root = ''
+        self._root = ""
 
     def add_route(self, src_ns, dst_ns):
         """add a new route from src nodeset to dst nodeset. The destination
@@ -371,9 +378,10 @@ class TopologyGraph(object):
 
     def __str__(self):
         """printable representation of the graph"""
-        res = '<TopologyGraph>\n'
-        res += '\n'.join(['%s: %s' % (str(k), str(v))
-                          for k, v in self._nodegroups.items()])
+        res = "<TopologyGraph>\n"
+        res += "\n".join(
+            ["%s: %s" % (str(k), str(v)) for k, v in self._nodegroups.items()]
+        )
         return res
 
     def _routes_to_tng(self):
@@ -427,6 +435,7 @@ class TopologyParser(configparser.ConfigParser):
     # Comment
     <these machines> : <can reach these ones>
     """
+
     def __init__(self, filename=None):
         """instance wide variables initialization"""
         configparser.ConfigParser.__init__(self)
@@ -451,8 +460,7 @@ class TopologyParser(configparser.ConfigParser):
                 # compat routes section [deprecated since v1.7]
                 self._topology = self.items("Main")
         except configparser.Error:
-            raise TopologyError(
-                'Invalid configuration file: %s' % filename)
+            raise TopologyError("Invalid configuration file: %s" % filename)
         self._build_graph()
 
     def _build_graph(self):
@@ -465,11 +473,14 @@ class TopologyParser(configparser.ConfigParser):
             # but we ignore any empty sets
             src_ns = NodeSet(src)
             if not src_ns:
-                LOGGER.debug('Failed to resolve router node set: %s', src)
+                LOGGER.debug("Failed to resolve router node set: %s", src)
             dst_ns = NodeSet(dst)
             if not dst_ns:
-                LOGGER.debug('Failed to resolve destination node set "%s" for' \
-                             'router node set %s', dst, src_ns)
+                LOGGER.debug(
+                    'Failed to resolve destination node set "%s" forrouter node set %s',
+                    dst,
+                    src_ns,
+                )
             if src_ns and dst_ns:
                 self.graph.add_route(src_ns, dst_ns)
 

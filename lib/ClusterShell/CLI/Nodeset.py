@@ -35,9 +35,13 @@ import sys
 
 from ClusterShell.CLI.Error import GENERIC_ERRORS, handle_generic_error
 from ClusterShell.CLI.OptionParser import OptionParser
-
-from ClusterShell.NodeSet import NodeSet, RangeSet, std_group_resolver
-from ClusterShell.NodeSet import grouplist, set_std_group_resolver_config
+from ClusterShell.NodeSet import (
+    NodeSet,
+    RangeSet,
+    grouplist,
+    set_std_group_resolver_config,
+    std_group_resolver,
+)
 from ClusterShell.NodeUtils import GroupSourceNoUpcall
 
 
@@ -47,13 +51,14 @@ def process_stdin(xsetop, xsetcls, autostep):
     tmpset = xsetcls(autostep=autostep)
     for line in sys.stdin:  # read lines of text stream (not bytes)
         # Support multi-lines and multi-nodesets per line
-        line = line[0:line.find('#')].strip()
+        line = line[0 : line.find("#")].strip()
         for elem in line.split():
             # Do explicit object creation for RangeSet
             tmpset.update(xsetcls(elem, autostep=autostep))
     # Perform operation on xset
     if tmpset:
         xsetop(tmpset)
+
 
 def compute_nodeset(xset, args, autostep):
     """Apply operations and operands from args on xset, an initial
@@ -66,32 +71,35 @@ def compute_nodeset(xset, args, autostep):
         arg = args.pop(0)
         if arg in ("-i", "--intersection"):
             val = args.pop(0)
-            if val == '-':
+            if val == "-":
                 process_stdin(xset.intersection_update, class_set, autostep)
             else:
-                xset.intersection_update(class_set.fromlist(val.splitlines(),
-                                                            autostep=autostep))
+                xset.intersection_update(
+                    class_set.fromlist(val.splitlines(), autostep=autostep)
+                )
         elif arg in ("-x", "--exclude"):
             val = args.pop(0)
-            if val == '-':
+            if val == "-":
                 process_stdin(xset.difference_update, class_set, autostep)
             else:
-                xset.difference_update(class_set.fromlist(val.splitlines(),
-                                                          autostep=autostep))
+                xset.difference_update(
+                    class_set.fromlist(val.splitlines(), autostep=autostep)
+                )
         elif arg in ("-X", "--xor"):
             val = args.pop(0)
-            if val == '-':
-                process_stdin(xset.symmetric_difference_update, class_set,
-                              autostep)
+            if val == "-":
+                process_stdin(xset.symmetric_difference_update, class_set, autostep)
             else:
                 xset.symmetric_difference_update(
-                    class_set.fromlist(val.splitlines(), autostep=autostep))
-        elif arg == '-':
+                    class_set.fromlist(val.splitlines(), autostep=autostep)
+                )
+        elif arg == "-":
             process_stdin(xset.update, xset.__class__, autostep)
         else:
             xset.update(class_set.fromlist(arg.splitlines(), autostep=autostep))
 
     return xset
+
 
 def print_source_groups(source, level, xset, opts):
     """
@@ -112,8 +120,7 @@ def print_source_groups(source, level, xset, opts):
             elif level == 2:
                 print("%s %s" % (group, inodes))
             else:
-                print("%s %s %d/%d" % (group, inodes, len(inodes),
-                                       len(gnodes)))
+                print("%s %s %d/%d" % (group, inodes, len(inodes), len(gnodes)))
     else:
         # "raw" group list when no argument at all
         for group in grouplist(source):
@@ -129,6 +136,7 @@ def print_source_groups(source, level, xset, opts):
                     print("%s %s" % (nsgroup, nodes))
                 else:
                     print("%s %s %d" % (nsgroup, nodes, len(nodes)))
+
 
 def command_list(options, xset, group_resolver):
     """List command handler (-l/-ll/-lll/-L/-LL/-LLL)."""
@@ -153,6 +161,7 @@ def command_list(options, xset, group_resolver):
             msgfmt = "Warning: No %s upcall defined for group source %s"
             print(msgfmt % (exc, source), file=sys.stderr)
 
+
 def nodeset():
     """script subroutine"""
     class_set = NodeSet
@@ -172,10 +181,16 @@ def nodeset():
         logging.basicConfig(level=logging.DEBUG)
 
     # Check for command presence
-    cmdcount = int(options.count) + int(options.expand) + \
-               int(options.fold) + int(bool(options.list)) + \
-               int(bool(options.listall)) + int(options.regroup) + \
-               int(options.groupsources) + int(options.completion)
+    cmdcount = (
+        int(options.count)
+        + int(options.expand)
+        + int(options.fold)
+        + int(bool(options.list))
+        + int(bool(options.listall))
+        + int(options.regroup)
+        + int(options.groupsources)
+        + int(options.completion)
+    )
     if not cmdcount:
         parser.error("No command specified.")
     elif cmdcount > 1:
@@ -198,8 +213,10 @@ def nodeset():
         parser.error("--axis option is only supported when folding nodeset")
 
     if options.groupsource and not options.quiet and class_set == RangeSet:
-        print("WARNING: option group source \"%s\" ignored"
-              % options.groupsource, file=sys.stderr)
+        print(
+            'WARNING: option group source "%s" ignored' % options.groupsource,
+            file=sys.stderr,
+        )
 
     # We want -s <groupsource> to act as a substitution of default groupsource
     # (ie. it's not necessary to prefix group names by this group source).
@@ -209,7 +226,7 @@ def nodeset():
     # The groupsources command simply lists group sources.
     if options.groupsources:
         if options.quiet:
-            dispdefault = ""    # don't show (default) if quiet is set
+            dispdefault = ""  # don't show (default) if quiet is set
         else:
             dispdefault = " (default)"
         for src in group_resolver.sources():
@@ -221,7 +238,7 @@ def nodeset():
 
     # Do not use autostep for computation when a percentage or the special
     # value 'auto' is specified. Real autostep value is set post-process.
-    if isinstance(autostep, float) or autostep == 'auto':
+    if isinstance(autostep, float) or autostep == "auto":
         autostep = None
 
     # Instantiate RangeSet or NodeSet object
@@ -229,36 +246,39 @@ def nodeset():
 
     if options.all:
         # Include all nodes from external node groups support.
-        xset.update(NodeSet.fromall()) # uses default_source when set
+        xset.update(NodeSet.fromall())  # uses default_source when set
 
-    if not args and not options.all and not (options.list or
-                                             options.listall or
-                                             options.completion):
+    if (
+        not args
+        and not options.all
+        and not (options.list or options.listall or options.completion)
+    ):
         # No need to specify '-' to read stdin in these cases
         process_stdin(xset.update, xset.__class__, autostep)
 
-    if not xset and (options.and_nodes or options.sub_nodes or
-                     options.xor_nodes) and not options.quiet:
-        print('WARNING: empty left operand for set operation', file=sys.stderr)
+    if (
+        not xset
+        and (options.and_nodes or options.sub_nodes or options.xor_nodes)
+        and not options.quiet
+    ):
+        print("WARNING: empty left operand for set operation", file=sys.stderr)
 
     # Apply first operations (before first non-option)
     for nodes in options.and_nodes:
-        if nodes == '-':
+        if nodes == "-":
             process_stdin(xset.intersection_update, xset.__class__, autostep)
         else:
             xset.intersection_update(class_set(nodes, autostep=autostep))
     for nodes in options.sub_nodes:
-        if nodes == '-':
+        if nodes == "-":
             process_stdin(xset.difference_update, xset.__class__, autostep)
         else:
             xset.difference_update(class_set(nodes, autostep=autostep))
     for nodes in options.xor_nodes:
-        if nodes == '-':
-            process_stdin(xset.symmetric_difference_update, xset.__class__,
-                          autostep)
+        if nodes == "-":
+            process_stdin(xset.symmetric_difference_update, xset.__class__, autostep)
         else:
-            xset.symmetric_difference_update(class_set(nodes,
-                                                       autostep=autostep))
+            xset.symmetric_difference_update(class_set(nodes, autostep=autostep))
 
     # Finish xset computing from args
     compute_nodeset(xset, args, autostep)
@@ -279,8 +299,7 @@ def nodeset():
         options.expand = True
 
     # Interpret special characters (may raise SyntaxError)
-    separator = eval('\'\'\'%s\'\'\'' % options.separator,
-                     {"__builtins__":None}, {})
+    separator = eval("'''%s'''" % options.separator, {"__builtins__": None}, {})
 
     if options.slice_rangeset:
         _xset = class_set()
@@ -288,7 +307,7 @@ def nodeset():
             _xset.update(xset[sli])
         xset = _xset
 
-    if options.autostep == 'auto':
+    if options.autostep == "auto":
         # Simple implementation of --autostep=auto
         # if we have at least 3 nodes, all index should be foldable as a-b/n
         xset.autostep = max(3, len(xset))
@@ -299,10 +318,11 @@ def nodeset():
 
     # user-specified nD-nodeset fold axis
     if options.axis:
-        if not options.axis.startswith('-'):
+        if not options.axis.startswith("-"):
             # axis are 1-indexed in nodeset CLI (0 ignored)
-            xset.fold_axis = tuple(x-1 for x in \
-                                   RangeSet(options.axis).intiter() if x > 0)
+            xset.fold_axis = tuple(
+                x - 1 for x in RangeSet(options.axis).intiter() if x > 0
+            )
         else:
             # negative axis index (only single number supported)
             xset.fold_axis = [int(options.axis)]
@@ -312,26 +332,28 @@ def nodeset():
         # nodesets; and we assume options.pick will remain small-ish
         keep = random.sample(list(xset), options.pick)
         # explicit class_set creation and str() conversion for RangeSet
-        keep = class_set(','.join([str(x) for x in keep]))
+        keep = class_set(",".join([str(x) for x in keep]))
         xset.intersection_update(keep)
 
-    fmt = options.output_format # default to '%s'
+    fmt = options.output_format  # default to '%s'
 
     # Display result according to command choice
     if options.expand:
         xsubres = lambda x: separator.join((fmt % s for s in x.striter()))
     elif options.fold:
         # Special case when folding using NodeSet and format is set (#277)
-        if class_set is NodeSet and fmt != '%s':
+        if class_set is NodeSet and fmt != "%s":
             # Create a new set after format has been applied to each node
-            xset = class_set._fromlist1((fmt % xnodestr for xnodestr in xset),
-                                        autostep=xset.autostep)
+            xset = class_set._fromlist1(
+                (fmt % xnodestr for xnodestr in xset), autostep=xset.autostep
+            )
             xsubres = lambda x: x
         else:
             xsubres = lambda x: fmt % x
     elif options.regroup:
-        xsubres = lambda x: fmt % x.regroup(options.groupsource,
-                                            noprefix=options.groupbase)
+        xsubres = lambda x: (
+            fmt % x.regroup(options.groupsource, noprefix=options.groupbase)
+        )
     else:
         xsubres = lambda x: fmt % len(x)
 
@@ -344,6 +366,7 @@ def nodeset():
             xiterator = xset.split(options.maxsplit)
         for xsubset in xiterator:
             print(xsubres(xsubset))
+
 
 def main():
     """main script function"""
@@ -361,5 +384,5 @@ def main():
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

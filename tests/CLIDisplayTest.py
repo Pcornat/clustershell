@@ -3,17 +3,15 @@
 
 """Unit test for CLI.Display"""
 
+import os
 import tempfile
 import unittest
-import os
 from io import StringIO
 
-from ClusterShell.CLI.Display import Display, THREE_CHOICES, VERB_STD
+from ClusterShell.CLI.Display import THREE_CHOICES, VERB_STD, Display
 from ClusterShell.CLI.OptionParser import OptionParser
-
 from ClusterShell.MsgTree import MsgTree
 from ClusterShell.NodeSet import NodeSet, set_std_group_resolver
-
 from ClusterShell.NodeUtils import GroupResolverConfig
 
 
@@ -24,10 +22,12 @@ def makeTestFile(text):
     f.flush()
     return f
 
+
 class CLIDisplayTest(unittest.TestCase):
     """This test case performs a complete CLI.Display verification.  Also
     CLI.OptionParser is used and some parts are verified btw.
     """
+
     def testDisplay(self):
         """test CLI.Display"""
         parser = OptionParser("dummy")
@@ -41,23 +41,23 @@ class CLIDisplayTest(unittest.TestCase):
 
         list_env_vars = []
         list_env_vars.append(dict())
-        list_env_vars.append(dict(NO_COLOR='0'))
-        list_env_vars.append(dict(CLICOLOR='0'))
-        list_env_vars.append(dict(CLICOLOR='1'))
-        list_env_vars.append(dict(CLICOLOR='0', CLICOLOR_FORCE='0'))
-        list_env_vars.append(dict(CLICOLOR_FORCE='1'))
+        list_env_vars.append(dict(NO_COLOR="0"))
+        list_env_vars.append(dict(CLICOLOR="0"))
+        list_env_vars.append(dict(CLICOLOR="1"))
+        list_env_vars.append(dict(CLICOLOR="0", CLICOLOR_FORCE="0"))
+        list_env_vars.append(dict(CLICOLOR_FORCE="1"))
 
         for env_vars in list_env_vars:
             for var_name in env_vars:
                 var_value = env_vars[var_name]
                 os.environ[var_name] = var_value
 
-            for whencolor in THREE_CHOICES: # test whencolor switch
+            for whencolor in THREE_CHOICES:  # test whencolor switch
                 if whencolor == "":
                     options.whencolor = None
                 else:
                     options.whencolor = whencolor
-                for label in [True, False]: # test no-label switch
+                for label in [True, False]:  # test no-label switch
                     options.label = label
                     disp = Display(options)
                     # inhibit output
@@ -111,8 +111,10 @@ list: echo all
 
             # nodeset.regroup() is performed by print_gather()
             disp.print_gather(ns, b"message0\nmessage1\n")
-            self.assertEqual(disp.out.getvalue(),
-                "---------------\n@all\n---------------\nmessage0\nmessage1\n\n")
+            self.assertEqual(
+                disp.out.getvalue(),
+                "---------------\n@all\n---------------\nmessage0\nmessage1\n\n",
+            )
         finally:
             set_std_group_resolver(None)
 
@@ -144,11 +146,9 @@ list: echo all
         self.assertEqual(disp.line_mode, False)
         ns = NodeSet("node")
         disp.print_line(ns, b"message0\n\xf8message1\n")
-        self.assertEqual(disp.out.getvalue(),
-            "node: message0\n\ufffdmessage1\n\n")
+        self.assertEqual(disp.out.getvalue(), "node: message0\n\ufffdmessage1\n\n")
         disp.print_line_error(ns, b"message0\n\xf8message1\n")
-        self.assertEqual(disp.err.getvalue(),
-            "node: message0\n\ufffdmessage1\n\n")
+        self.assertEqual(disp.err.getvalue(), "node: message0\n\ufffdmessage1\n\n")
 
     def testDisplayDecodingErrorsGather(self):
         """test CLI.Display (decoding errors, gather)"""
@@ -162,8 +162,10 @@ list: echo all
         self.assertEqual(disp.line_mode, False)
         ns = NodeSet("node")
         disp._print_buffer(ns, b"message0\n\xf8message1\n")
-        self.assertEqual(disp.out.getvalue(),
-            "---------------\nnode\n---------------\nmessage0\n\ufffdmessage1\n\n")
+        self.assertEqual(
+            disp.out.getvalue(),
+            "---------------\nnode\n---------------\nmessage0\n\ufffdmessage1\n\n",
+        )
 
     def testDisplayDecodingErrorsLineMode(self):
         """test CLI.Display (decoding errors, line mode)"""
@@ -178,8 +180,9 @@ list: echo all
         self.assertEqual(disp.line_mode, True)
         ns = NodeSet("node")
         disp.print_gather(ns, [b"message0\n", b"\xf8message1\n"])
-        self.assertEqual(disp.out.getvalue(),
-            "node: message0\n\nnode: \ufffdmessage1\n\n")
+        self.assertEqual(
+            disp.out.getvalue(), "node: message0\n\nnode: \ufffdmessage1\n\n"
+        )
 
     def testDisplayDecodingErrorsLineModeNoLabel(self):
         """test CLI.Display (decoding errors, line mode, no label)"""
@@ -194,5 +197,4 @@ list: echo all
         self.assertEqual(disp.line_mode, True)
         ns = NodeSet("node")
         disp.print_gather(ns, [b"message0\n", b"\xf8message1\n"])
-        self.assertEqual(disp.out.getvalue(),
-            "message0\n\n\ufffdmessage1\n\n")
+        self.assertEqual(disp.out.getvalue(), "message0\n\n\ufffdmessage1\n\n")
