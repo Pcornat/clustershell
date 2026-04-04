@@ -46,8 +46,31 @@ cluset = "ClusterShell.CLI.Nodeset:main"
 clush = "ClusterShell.CLI.Clush:main"
 nodeset = "ClusterShell.CLI.Nodeset:main"
 
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pre-commit",
+    "isort"
+]
+
 [tool.setuptools_scm]
 
 [tool.setuptools.packages.find]
 where = ["lib"]
 exclude = ["tests"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib"
+]
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+fix = true
+extend-exclude = ["**/__pycache__/", "build", "*.egg-info"]
+required-version = ">=0.3.3"
+
+[tool.ruff.format]
+docstring-code-format = true
